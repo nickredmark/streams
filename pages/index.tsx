@@ -42,21 +42,24 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
           <ul>
             {Object.keys(streams).sort((a, b) => {
               return getStreamTimestamp(streams[b]) - getStreamTimestamp(streams[a]);
-            }).map(streamName => (
-              <li key={streamName}>
-                <Link href={`/stream/${streamName}`}>
-                  <a>{streamName}</a>
+            }).map(key => {
+              const stream = streams[key]
+              return <li key={key}>
+                <Link href={`/stream/${stream.name}`}>
+                  <a>{stream.name}</a>
                 </Link>
                 <span style={{
                   fontSize: "80%",
                   color: "lightgray",
                   marginLeft: "0.75rem"
-                }}>{formatTime(getStreamTimestamp(streams[streamName]))}</span>
+                }}>{formatTime(getStreamTimestamp(stream))}</span>
               </li>
-            ))}
+            })}
           </ul>
         </div>
-        <NewStream />
+        {!process.env.READONLY &&
+          <NewStream />
+        }
       </Layout>
     );
   }

@@ -2,7 +2,10 @@ let think: StreamsService;
 
 export const getStreams = () => {
     if (!think) {
-        think = new StreamsService(process.env.NAMESPACE);
+        think = new StreamsService(
+            process.env.NAMESPACE,
+            process.env.STREAMS && process.env.STREAMS.split(',')
+                .reduce((streams, s) => (streams[s.split(':')[0]] = s.split(':')[1], streams), {}));
     }
     return think;
 }
@@ -19,7 +22,7 @@ export class StreamsService {
     public gun;
     public user;
 
-    constructor(private namespace: string) {
+    constructor(private namespace: string, private streams?: { [key: string]: string }) {
         this.gun = (window as any).Gun('https://gunjs.herokuapp.com/gun')
         this.user = this.gun.user();
     }
@@ -45,10 +48,23 @@ export class StreamsService {
     }
 
     onStream(listener: (data: Stream, key: string) => void) {
-        this.gun.get(this.namespace).map().on(listener);
+        if (this.streams) {
+            Object.values(this.streams).map(key => this.gun.get(key).on(listener))
+        } else {
+            this.gun.get(this.namespace).map().on(listener);
+        }
     }
 
     onMessage(streamName: string, listener: (data: Message, key: string) => void) {
+        if (this.streams) {
+            this.gun.get(this.streams[streamName]).get('messages').map().on(listener);
+        }
         this.gun.get(this.namespace).get(streamName).get('messages').map().on(listener)
+    }
+
+    setStreamName(key: string, name: string) {
+        this.gun.get(this.namespace).get(key).put({
+            name
+        })
     }
 }

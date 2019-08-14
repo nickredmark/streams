@@ -40,8 +40,9 @@ class StreamComponent extends Component<{ streamName: string }, { messages: { [k
           <MessageComponent key={key} message={messages[key]} />
         ))}
       </div>
-      <NewMessage streamName={streamName} />
-
+      {!process.env.READONLY &&
+        <NewMessage streamName={streamName} />
+      }
     </>
   }
 }
