@@ -32,7 +32,6 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
     const { streams } = this.state;
     return (
       <Layout>
-        <h1>Streams</h1>
         <div style={{
           flexGrow: 1,
           flexShrink: 1,
@@ -44,6 +43,7 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
               return getStreamTimestamp(streams[b]) - getStreamTimestamp(streams[a]);
             }).map(key => {
               const stream = streams[key]
+              // console.log(`${stream.name}:${(stream as any)._['#']}`)
               return <li key={key}>
                 <Link href={`/stream/${stream.name}`}>
                   <a>{stream.name}</a>
