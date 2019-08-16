@@ -1,13 +1,13 @@
-let think: StreamsService;
+let streams: StreamsService;
 
 export const getStreams = () => {
-    if (!think) {
-        think = new StreamsService(
+    if (!streams) {
+        streams = new StreamsService(
             process.env.NAMESPACE,
             process.env.STREAMS && process.env.STREAMS.split(',')
                 .reduce((streams, s) => (streams[s.split(':')[0]] = s.split(':')[1], streams), {}));
     }
-    return think;
+    return streams;
 }
 
 export type Stream = {
