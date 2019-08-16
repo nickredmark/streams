@@ -38,7 +38,11 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
           minHeight: 0,
           overflowY: "auto"
         }}>
-          <ul>
+          <ul
+            style={{
+              margin: 0
+            }}
+          >
             {Object.keys(streams).sort((a, b) => {
               return getStreamTimestamp(streams[b]) - getStreamTimestamp(streams[a]);
             }).map(key => {
@@ -46,7 +50,10 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
               // console.log(`${stream.name}:${(stream as any)._['#']}`)
               return <li key={key}>
                 <Link href={`/stream/${stream.name}`}>
-                  <a>{stream.name}</a>
+                  <a style={{
+                    textDecoration: "none",
+                  }}
+                  >{stream.name}</a>
                 </Link>
                 <span style={{
                   fontSize: "80%",

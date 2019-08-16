@@ -29,12 +29,13 @@ class StreamComponent extends Component<{ streamName: string }, { messages: { [k
     const { streamName } = this.props;
     const { messages } = this.state;
     return <>
-      <h1>{streamName}</h1>
+      <h1 style={{ margin: "0.5rem", fontSize: "2rem" }}>{streamName}</h1>
       <div style={{
         flexGrow: 1,
         flexShrink: 1,
         minHeight: 0,
         overflowY: "auto",
+        padding: "0.5rem"
       }}>
         {Object.keys(messages).sort().map((key) => (
           <MessageComponent key={key} message={messages[key]} />
