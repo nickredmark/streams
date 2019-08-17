@@ -58,8 +58,9 @@ export class StreamsService {
     onMessage(streamName: string, listener: (data: Message, key: string) => void) {
         if (this.streams) {
             this.gun.get(this.streams[streamName]).get('messages').map().on(listener);
+        } else {
+            this.gun.get(this.namespace).get(streamName).get('messages').map().on(listener)
         }
-        this.gun.get(this.namespace).get(streamName).get('messages').map().on(listener)
     }
 
     setStreamName(key: string, name: string) {
