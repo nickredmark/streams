@@ -1,71 +1,120 @@
 let streams: StreamsService;
 
 export const getStreams = () => {
-    if (!streams) {
-        streams = new StreamsService(
-            process.env.NAMESPACE,
-            process.env.STREAMS && process.env.STREAMS.split(',')
-                .reduce((streams, s) => (streams[s.split(':')[0]] = s.split(':')[1], streams), {}));
-    }
-    return streams;
-}
+  if (!streams) {
+    streams = new StreamsService(
+      process.env.NAMESPACE,
+      process.env.STREAMS &&
+        process.env.STREAMS.split(",").reduce(
+          (streams, s) => (
+            (streams[s.split(":")[0]] = s.split(":")[1]), streams
+          ),
+          {}
+        )
+    );
+  }
+  return streams;
+};
 
 export type Stream = {
-    name: string
+  name: string;
 };
 
 export type Message = {
-    text: string
-}
+  text: string;
+};
 
 export class StreamsService {
-    public gun;
-    public user;
+  public gun;
+  public user;
 
-    constructor(private namespace: string, private streams?: { [key: string]: string }) {
-        this.gun = (window as any).Gun('https://gunjs.herokuapp.com/gun')
-        this.user = this.gun.user();
-    }
+  constructor(
+    private namespace: string,
+    private streams?: { [key: string]: string }
+  ) {
+    this.gun = (window as any).Gun("https://gunjs.herokuapp.com/gun");
+    this.user = this.gun.user();
+  }
 
-    async init() {
-        /* no user needed for now
+  async init() {
+    /* no user needed for now
         await Promise.race([
             new Promise(res => this.user.recall({ sessionStorage: true }, res)),
             new Promise(res => setTimeout(res, 5000))
         ]);
         */
-    }
+  }
 
-    async createStream(name: string) {
-        this.gun.get(this.namespace).get(name).put({
+  async createStream(name: string) {
+    await new Promise(res =>
+      this.gun
+        .get(this.namespace)
+        .get(name)
+        .put(
+          {
             name
-        });
-    }
+          },
+          res
+        )
+    );
+  }
 
-    async createMessage(stream: Stream, message: Message) {
-        const ref = this.gun.get(this.namespace).get(stream).get('messages').set(message);
-        this.gun.get(this.namespace).get(stream).get('lastMessage').put(ref);
-    }
+  async createMessage(stream: Stream, message: Message) {
+    const ref = await new Promise(res => {
+      const ref = this.gun
+        .get(this.namespace)
+        .get(stream)
+        .get("messages")
+        .set(message, () => res(ref));
+    });
+    await new Promise(res =>
+      this.gun
+        .get(this.namespace)
+        .get(stream)
+        .get("lastMessage")
+        .put(ref, res)
+    );
+  }
 
-    onStream(listener: (data: Stream, key: string) => void) {
-        if (this.streams) {
-            Object.values(this.streams).map(key => this.gun.get(key).on(listener))
-        } else {
-            this.gun.get(this.namespace).map().on(listener);
-        }
+  onStream(listener: (data: Stream, key: string) => void) {
+    if (this.streams) {
+      Object.values(this.streams).map(key => this.gun.get(key).on(listener));
+    } else {
+      this.gun
+        .get(this.namespace)
+        .map()
+        .on(listener);
     }
+  }
 
-    onMessage(streamName: string, listener: (data: Message, key: string) => void) {
-        if (this.streams) {
-            this.gun.get(this.streams[streamName]).get('messages').map().on(listener);
-        } else {
-            this.gun.get(this.namespace).get(streamName).get('messages').map().on(listener)
-        }
+  onMessage(
+    streamName: string,
+    listener: (data: Message, key: string) => void
+  ) {
+    if (this.streams) {
+      this.gun
+        .get(this.streams[streamName])
+        .get("messages")
+        .map()
+        .on(listener);
+    } else {
+      this.gun
+        .get(this.namespace)
+        .get(streamName)
+        .get("messages")
+        .map()
+        .on(listener);
     }
+  }
 
-    setStreamName(key: string, name: string) {
-        this.gun.get(this.namespace).get(key).put({
-            name
-        })
-    }
+  setStreamName(key: string, name: string) {
+    this.gun
+      .get(this.namespace)
+      .get(key)
+      .put({
+        name
+      });
+  }
+
+  moveMessages(messages: string[], from: string, to: string) {}
 }
