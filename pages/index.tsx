@@ -4,7 +4,7 @@ import Layout from "../components/Layout";
 import { useRef, Component } from "react";
 import { useRouter } from "next/router";
 import { getStreams, Stream } from "../services/Streams";
-import { formatTime } from "../utils/time";
+import { formatTime, streamComparator, getStreamTimestamp } from "../utils/time";
 
 class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
   constructor(props) {
@@ -43,9 +43,7 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
               margin: 0
             }}
           >
-            {Object.keys(streams).sort((a, b) => {
-              return getStreamTimestamp(streams[b]) - getStreamTimestamp(streams[a]);
-            }).map(key => {
+            {Object.keys(streams).sort(streamComparator(streams)).map(key => {
               const stream = streams[key]
               // console.log(`${stream.name}:${(stream as any)._['#']}`)
               return <li key={key}>
@@ -71,8 +69,6 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
     );
   }
 }
-
-const getStreamTimestamp = (stream: any) => stream._['>'].lastMessage || stream._['>'].name
 
 const NewStream = () => {
   const name = useRef(null);

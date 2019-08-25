@@ -7,3 +7,10 @@ export const formatTime = (timestamp: number) => {
 
     return moment(timestamp).format('YYYY-MM-DD HH:mm')
 }
+
+
+export const getStreamTimestamp = (stream: any) => stream._['>'].lastMessage || stream._['>'].name
+
+export const streamComparator = (streams) => (a, b) => {
+    return getStreamTimestamp(streams[b]) - getStreamTimestamp(streams[a]);
+}
