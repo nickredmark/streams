@@ -65,7 +65,11 @@ export class StreamsService {
   }
 
   onMessage(streamName: string, listener: (data: Message, key: string) => void) {
-    this.getStream(streamName).get('messages').map().on(listener);
+    this.getStream(streamName).get('messages').map(messageMap).on(listener);
+  }
+
+  onAnyMessage(listener: (data: Message, key) => void) {
+    this.gun.get(this.namespace).map().get('messages').map(messageMap).on(listener);
   }
 
   setStreamName(key: string, name: string) {
@@ -100,3 +104,5 @@ export class StreamsService {
 }
 
 const getKey = (o: any) => o._['#']
+
+const messageMap = m => typeof m === 'string' ? undefined : m

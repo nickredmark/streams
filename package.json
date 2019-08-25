@@ -16,7 +16,10 @@
     "moment": "^2.24.0",
     "next": "^9.0.3",
     "react": "^16.8.6",
-    "react-dom": "^16.8.6"
+    "react-d3-cloud": "^0.7.0",
+    "react-dom": "^16.8.6",
+    "react-wordcloud": "^1.0.8",
+    "stopword": "^0.3.3"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.137",
