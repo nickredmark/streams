@@ -1002,5 +1002,7 @@ export const commonWords = ["the",
     // my additions
     "not",
     "don",
-    "ll"
+    "ll",
+    "https",
+    "com"
 ].map(s => s.toLowerCase())

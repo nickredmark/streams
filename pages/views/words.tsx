@@ -6,6 +6,7 @@ import { commonWords } from "../../utils/words";
 import WordCloud from 'react-d3-cloud';
 
 class Statistics extends Component<{}, { messages: { [key: string]: Message }, done: boolean }> {
+    private messages: { [key: string]: Message } = {}
     constructor(props) {
         super(props)
         this.state = {
@@ -16,24 +17,21 @@ class Statistics extends Component<{}, { messages: { [key: string]: Message }, d
     async componentDidMount() {
         (await getStreams()).onAnyMessage((message, key) => {
             if (message) {
-                this.setState(state => ({
-                    messages: {
-                        ...state.messages,
-                        [key]: {
-                            ...state.messages[key],
-                            ...message
-                        }
+                this.messages = {
+                    ...this.messages,
+                    [key]: {
+                        ...this.messages[key],
+                        ...message
                     }
-                }));
+                }
             } else {
-                this.setState(state => ({
-                    messages: pick(state.messages, Object.keys(state.messages).filter(k => k !== key))
-                }))
+                this.messages = pick(this.messages, Object.keys(this.messages).filter(k => k !== key));
             }
         })
 
         setTimeout(() => this.setState({
-            done: true
+            messages: this.messages,
+            done: true,
         }), 1000)
     }
 
@@ -44,7 +42,7 @@ class Statistics extends Component<{}, { messages: { [key: string]: Message }, d
 
         const words = {}
         for (const message of Object.values(this.state.messages)) {
-            for (const w of message.text.toLowerCase().split(/[ ,()\.'":/]+/g).filter(w => w.length > 1 && !commonWords.includes(w))) {
+            for (const w of (message.text || '').toLowerCase().split(/[ ,()\.'":/]+/g).filter(w => w.length > 1 && !commonWords.includes(w))) {
                 words[w] = (words[w] ? words[w] : 0) + 1
             }
         }
