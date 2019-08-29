@@ -18,14 +18,22 @@ export type Stream = {
 
 export type Message = {
   text: string;
+  parent: {
+    '#': string;
+  };
+  _: {
+    '#': string;
+  };
 };
 
 export class StreamsService {
+  private Gun;
   public gun;
   public user;
 
   constructor(private namespace: string, servers: string[], private streams?: { [key: string]: string }) {
-    this.gun = (window as any).Gun(...servers);
+    this.Gun = (window as any).Gun;
+    this.gun = this.Gun(...servers);
     this.user = this.gun.user();
   }
 
@@ -117,7 +125,7 @@ export class StreamsService {
     const m = this.getStream(from).get('messages');
     for (const message of messages) {
       // this.getStream(from).get('messages').unset(message); doesn't work :/
-      m.put({ [getKey(message)]: null });
+      m.put({ [this.getKey(message)]: null });
     }
   }
 
@@ -128,8 +136,25 @@ export class StreamsService {
       return this.gun.get(this.namespace).get(name);
     }
   }
-}
 
-const getKey = (o: any) => o._['#'];
+  public updateMessage(message: Message, text: string) {
+    this.gun.get(this.getKey(message)).put({ text });
+  }
+
+  public setSub(message: Message, sub: boolean) {
+    this.gun.get(this.getKey(message)).put({ sub });
+  }
+
+  public setParent(message: Message, parent: Message) {
+    this.gun.get(this.getKey(message)).put({ parent });
+    if (parent.parent && parent.parent['#'] === this.getKey(message)) {
+      this.gun.get(this.getKey(parent));
+    }
+  }
+
+  public getKey(o: any) {
+    return this.Gun.node.soul(o);
+  }
+}
 
 const messageMap = m => (typeof m === 'string' ? undefined : m);
