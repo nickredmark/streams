@@ -62,7 +62,7 @@ class StreamComponent extends Component<
     dragDrop('body', async (files) => {
       for (const file of files) {
         const message = await toBase64(file);
-        if (message.length > 100000) {
+        if (message.length > 1000000) {
           throw new Error(`File too large: ${message.length}`);
         }
         await getStreams().createMessage(streamName, {
