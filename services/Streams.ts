@@ -51,7 +51,7 @@ export class StreamsService {
     });
   }
 
-  async createMessage(stream: Stream, message: Message) {
+  async createMessage(stream: string, message: Message) {
     const ref = this.gun.get(this.namespace).get(stream).get('messages').set(message);
     this.gun.get(this.namespace).get(stream).get('lastMessage').put(ref);
   }

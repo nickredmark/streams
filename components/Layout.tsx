@@ -49,6 +49,11 @@ export default class extends Component<{}, { initialized: boolean, logged: boole
         #__next {
           height: 100%;
         }
+
+        img, video {
+          width: 100%;
+          max-width: 30rem;
+        }
       `}
       </style>
       <div>

@@ -1,10 +1,10 @@
 import Layout from "../../../components/Layout";
-import { useRef, Component, useEffect, useState } from "react";
+import { Component } from "react";
 import { getStreams, Message, Stream } from "../../../services/Streams";
 import { useRouter } from "next/router";
 import { pick } from 'lodash';
-import { Markdown } from "../../../components/Markdown";
 import { Mermaid } from "../../../components/Mermaid";
+import { NewMessage } from "../../../components/NewMessage";
 
 class StreamComponent extends Component<
     { streamName: string },
@@ -80,34 +80,6 @@ class StreamComponent extends Component<
         );
     }
 }
-
-const NewMessage = ({ streamName }) => {
-    const text = useRef(null);
-    return (
-        <form
-            onSubmit={async e => {
-                e.preventDefault();
-                const message = {
-                    text: text.current.value
-                };
-                text.current.value = "";
-                await getStreams().createMessage(streamName, message);
-            }}
-        >
-            <input
-                ref={text}
-                placeholder="new message"
-                style={{
-                    width: "100%",
-                    padding: "1rem",
-                    borderRadius: "none",
-                    border: "none",
-                    borderTop: "1px solid lightgray"
-                }}
-            />
-        </form>
-    );
-};
 
 export default () => {
     const router = useRouter();
