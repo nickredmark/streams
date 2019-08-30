@@ -54,6 +54,14 @@ export default class extends Component<{}, { initialized: boolean, logged: boole
           width: 100%;
           max-width: 30rem;
         }
+
+        .markdown {
+          display: inline;
+        }
+        .markdown p {
+          display: inline;
+          margin: 0;
+        }
       `}
       </style>
       <div>

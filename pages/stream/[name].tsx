@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { streamComparator } from "../../utils/time";
 import { pick } from 'lodash';
 import { NewMessage } from "../../components/NewMessage";
+import dragDrop from 'drag-drop';
 
 class StreamComponent extends Component<
   { streamName: string },
@@ -26,7 +27,8 @@ class StreamComponent extends Component<
   }
 
   async componentDidMount() {
-    getStreams().onMessage(this.props.streamName, (message, key) => {
+    const { streamName } = this.props;
+    getStreams().onMessage(streamName, (message, key) => {
       if (message) {
         this.setState(state => ({
           messages: {
@@ -56,6 +58,18 @@ class StreamComponent extends Component<
     });
 
     window.addEventListener("keydown", this.onKeyDown);
+
+    dragDrop('body', async (files) => {
+      for (const file of files) {
+        const message = await toBase64(file);
+        if (message.length > 100000) {
+          throw new Error(`File too large: ${message.length}`);
+        }
+        await getStreams().createMessage(streamName, {
+          text: message,
+        });
+      }
+    });
   }
 
   componentWillUnmount() {
@@ -132,6 +146,13 @@ class StreamComponent extends Component<
   }
 }
 
+const toBase64 = file => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = () => resolve(reader.result as string);
+  reader.onerror = error => reject(error);
+});
+
 const MessageComponent = ({ streamName, id, message, mode, selected, setSelected }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -164,7 +185,7 @@ const MessageComponent = ({ streamName, id, message, mode, selected, setSelected
         }}
       >
         <a id={id} />
-        {message.text}
+        <MessageContent message={message} />
         <a className="message-permalink" style={{
           marginLeft: "0.25rem",
           color: "lightgray",
@@ -175,6 +196,19 @@ const MessageComponent = ({ streamName, id, message, mode, selected, setSelected
     </div>
   );
 };
+
+const MessageContent = ({ message }) => {
+  if (/^data:image\//.exec(message.text)) {
+    return <img src={message.text} />
+  }
+  if (/^https?:\/\/|www/.exec(message.text)) {
+    return <a href={message.text} style={{
+      color: "inherit"
+    }} target="_blank">{message.text}</a>
+  }
+
+  return <span>{message.text}</span>
+}
 
 const MoveMessages = ({ messages, setSelectedMessages, selectedMessages, streamName, streams }) => {
   const stream = useRef(null);
