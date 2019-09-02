@@ -1,12 +1,9 @@
-import Layout from "../../../components/Layout";
 import { Component } from "react";
-import { getStreams, Message, Stream } from "../../../services/Streams";
-import { useRouter } from "next/router";
+import { getStreams, Message } from "../services/Streams";
 import { pick } from 'lodash';
-import { Mermaid } from "../../../components/Mermaid";
-import { NewMessage } from "../../../components/NewMessage";
+import { Mermaid } from "./Mermaid";
 
-class StreamComponent extends Component<
+export class Chart extends Component<
     { streamName: string },
     {
         messages: { [key: string]: Message };
@@ -40,7 +37,6 @@ class StreamComponent extends Component<
     }
 
     render() {
-        const { streamName } = this.props;
         const { messages } = this.state;
         const lines = [];
         const ids = {}
@@ -56,38 +52,10 @@ class StreamComponent extends Component<
                 lines.push(`${getId(match[1])}[${match[1]}] --> ${getId(match[2])}[${match[2]}]`);
             }
         }
-        if (!lines) {
-            return null
-        }
         return (
-            <>
-                <h1 style={{ margin: "0.5rem", fontSize: "2rem" }}>{streamName}</h1>
-                <div
-                    style={{
-                        flexGrow: 1,
-                        flexShrink: 1,
-                        minHeight: 0,
-                        overflowY: "auto",
-                        padding: "0.5rem"
-                    }}
-                >
-                    {lines.length > 0 &&
-                        <Mermaid chart={`graph LR;\n${lines.map(line => `${line};`).join('\n')}`} />
-                    }
-                </div>
-                {!process.env.READONLY && <NewMessage streamName={streamName} />}
-            </>
+            lines.length > 0 ?
+                <Mermaid chart={`graph LR;\n${lines.map(line => `${line};`).join('\n')}`} /> :
+                <em>Chart is empty, try adding relationship messages like "A --> B".</em>
         );
     }
 }
-
-export default () => {
-    const router = useRouter();
-    return (
-        <Layout>
-            {router.query.name && (
-                <StreamComponent streamName={router.query.name as string} />
-            )}
-        </Layout>
-    );
-};

@@ -8,6 +8,7 @@ import { NewMessage } from "../../components/NewMessage";
 import dragDrop from 'drag-drop';
 import { stringify } from 'querystring';
 import { sort, getKey, getIndex } from '../../utils/ordered-list';
+import { Chart } from '../../components/Chart';
 
 class StreamComponent extends Component<
   { router: NextRouter; streamName: string },
@@ -266,7 +267,7 @@ const MessageComponent = ({
             }}
           >
             <a id={id} />
-            <MessageContent message={message} />
+            <MessageContent message={message} streamName={streamName} />
             <a
               className="message-permalink"
               style={{
@@ -285,7 +286,7 @@ const MessageComponent = ({
   );
 };
 
-const MessageContent = ({ message }) => {
+const MessageContent = ({ message, streamName }) => {
   if (/^data:image\//.exec(message.text)) {
     return <img src={message.text} />
   }
@@ -293,6 +294,9 @@ const MessageContent = ({ message }) => {
     return <a href={message.text} style={{
       color: "inherit"
     }} target="_blank">{message.text}</a>
+  }
+  if (message.text === 'CHART') {
+    return <Chart streamName={streamName} />
   }
 
   return <span>{message.text}</span>
