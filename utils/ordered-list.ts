@@ -30,30 +30,55 @@ export const update = (gun: Gun, o: GunEntity, key: string, value: string) => {
 
 export const getKey = (o: GunEntity) => o._['#'];
 
-export const isBetween = (x: string | undefined, a: string | undefined, b: string | undefined) =>
-  (a === undefined || a < x) && (b === undefined || x < b);
+type IndexPart = string | undefined | null;
 
 export const compare = (a: GunEntity & Ordered, b: GunEntity & Ordered) => {
   const indexA = getIndex(a);
   const indexB = getIndex(b);
 
   for (let i = 0; i < Math.max(indexA.length, indexB.length); i++) {
-    if (indexA[i] !== indexB[i]) {
-      return indexA[i] === undefined || indexA[i] < indexB[i] ? -1 : 1;
+    const comparison = compareIndexPart(indexA[i], indexB[i]);
+    if (comparison !== 0) {
+      return comparison;
     }
   }
 
   return 0;
 };
 
-export const getIndexBetween = (current: GunEntity, previous: GunEntity & Ordered, next: GunEntity & Ordered) => {
-  const previousIndex = previous ? getIndex(previous) : [];
-  const nextIndex = next ? getIndex(next) : [];
-  const index = [];
+const compareIndexPart = (a: IndexPart, b: IndexPart) => {
+  if (a == b) { // using == on purpose
+    return 0;
+  }
+  if (!a) {
+    return -1;
+  }
+  if (!b) {
+    return 1;
+  }
+  return a < b ? -1 : 1;
+}
+
+export const getIndexBetween = (current: GunEntity, prev: GunEntity & Ordered, next: GunEntity & Ordered) => {
+  // note how [] = MIN and undefined = MAX
+  const prevIndex = prev ? getIndex(prev) : [];
+  const nextIndex = next ? getIndex(next) : undefined;
   const currentKey = getKey(current);
-  let i = 0;
-  while (!isBetween(currentKey, previousIndex[i], nextIndex[i])) {
-    index.push(previousIndex[i++]);
+
+  const index = [];
+  if (nextIndex) {
+    // make sure we are between prev and next
+    while (compareIndexPart(prevIndex[index.length], nextIndex[index.length]) === 0) {
+      index.push(prevIndex[index.length]);
+    }
+    // make sure we are before next
+    if (compareIndexPart(nextIndex[index.length], currentKey) <= 0) {
+      index.push(prevIndex[index.length]);
+    }
+  }
+  // make sure we are after prev
+  while (compareIndexPart(currentKey, prevIndex[index.length]) <= 0) {
+    index.push(prevIndex[index.length]);
   }
   index.push(currentKey);
   return index;

@@ -7,7 +7,7 @@ import { pick } from 'lodash';
 import { NewMessage } from "../../components/NewMessage";
 import dragDrop from 'drag-drop';
 import { stringify } from 'querystring';
-import { sort, getKey } from '../../utils/ordered-list';
+import { sort, getKey, getIndex } from '../../utils/ordered-list';
 
 class StreamComponent extends Component<
   { router: NextRouter; streamName: string },
@@ -142,22 +142,10 @@ class StreamComponent extends Component<
                 }
                 isFocus={router.query.focus === key}
                 onFocus={value => focus(value)}
-                onFocusUp={() => message[i - 1] && focus(messages[i - 1])}
-                onFocusDown={() => message[i + 1] && focus(messages[i + 1])}
-                onMoveUp={() => {
-                  const pprev = messages[i - 2];
-                  const prev = messages[i - 1];
-                  if (prev) {
-                    getStreams().moveBetween(message, pprev, prev);
-                  }
-                }}
-                onMoveDown={() => {
-                  const next = messages[i + 1];
-                  const nnext = messages[i + 2];
-                  if (next) {
-                    getStreams().moveBetween(message, next, nnext);
-                  }
-                }}
+                onFocusUp={() => messages[i - 1] && focus(messages[i - 1])}
+                onFocusDown={() => messages[i + 1] && focus(messages[i + 1])}
+                onMoveUp={() => messages[i - 1] && getStreams().moveBetween(message, messages[i - 2], messages[i - 1])}
+                onMoveDown={() => messages[i + 1] && getStreams().moveBetween(message, messages[i + 1], messages[i + 2])}
               />
             );
           })}
@@ -233,6 +221,7 @@ const MessageComponent = ({
             // e.preventDefault();
             break;
           case 38: // up
+            e.preventDefault();
             if (e.ctrlKey) {
               onMoveUp();
             } else {
@@ -240,6 +229,7 @@ const MessageComponent = ({
             }
             break;
           case 40: // down
+            e.preventDefault();
             if (e.ctrlKey) {
               onMoveDown();
             } else {
