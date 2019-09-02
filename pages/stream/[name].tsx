@@ -1,6 +1,6 @@
 import Layout from '../../components/Layout';
 import { useRef, Component, useEffect, useState } from 'react';
-import { getStreams, Message, Stream } from '../../services/Streams';
+import { getStreams, Message, Stream, compare, MessageEntity, sort, getKey } from '../../services/Streams';
 import { useRouter, NextRouter } from 'next/router';
 import { streamComparator } from '../../utils/time';
 import { pick } from 'lodash';
@@ -9,7 +9,7 @@ import { stringify } from 'querystring';
 class StreamComponent extends Component<
   { router: NextRouter; streamName: string },
   {
-    messages: { [key: string]: Message };
+    messages: { [key: string]: MessageEntity };
     streams: { [key: string]: Stream };
     selectedMessages: string[];
     mode: 'stream' | 'select';
@@ -76,12 +76,12 @@ class StreamComponent extends Component<
 
   render() {
     const { streamName, router } = this.props;
-    const { messages, mode, streams, selectedMessages } = this.state;
-    const keys = Object.keys(messages).sort((a, b) => getStreams().compareMessages(messages[a], messages[b]));
-    const focus = value => {
+    const { messages: unsortedMessages, mode, streams, selectedMessages } = this.state;
+    const messages = sort(Object.values(unsortedMessages));
+    const focus = (message?: MessageEntity) => {
       router.replace(
-        `${router.pathname}${qstringify({ ...router.query, focus: value })}`,
-        `${location.pathname}${qstringify({ ...router.query, focus: value, name: undefined })}`,
+        `${router.pathname}${qstringify({ ...router.query, focus: message && getKey(message) })}`,
+        `${location.pathname}${qstringify({ ...router.query, focus: message && getKey(message), name: undefined })}`,
       );
     };
 
@@ -107,8 +107,8 @@ class StreamComponent extends Component<
             padding: '0.5rem',
           }}
         >
-          {keys.map((key, i) => {
-            const message = messages[key];
+          {messages.map((message, i) => {
+            const key = getKey(message);
             return (
               <MessageComponent
                 key={key}
@@ -126,18 +126,18 @@ class StreamComponent extends Component<
                 }
                 isFocus={router.query.focus === key}
                 onFocus={value => focus(value)}
-                onFocusUp={() => keys[i - 1] && focus(keys[i - 1])}
-                onFocusDown={() => keys[i + 1] && focus(keys[i + 1])}
+                onFocusUp={() => message[i - 1] && focus(messages[i - 1])}
+                onFocusDown={() => message[i + 1] && focus(messages[i + 1])}
                 onMoveUp={() => {
-                  const pprev = messages[keys[i - 2]];
-                  const prev = messages[keys[i - 1]];
+                  const pprev = messages[i - 2];
+                  const prev = messages[i - 1];
                   if (prev) {
                     getStreams().moveBetween(message, pprev, prev);
                   }
                 }}
                 onMoveDown={() => {
-                  const next = messages[keys[i + 1]];
-                  const nnext = messages[keys[i + 2]];
+                  const next = messages[i + 1];
+                  const nnext = messages[i + 2];
                   if (next) {
                     getStreams().moveBetween(message, next, nnext);
                   }
@@ -196,14 +196,14 @@ const MessageComponent = ({
         }),
       }}
       onDoubleClick={e => {
-        onFocus(isFocus ? undefined : id);
+        onFocus(isFocus ? undefined : message);
       }}
       onKeyDown={e => {
         switch (e.keyCode) {
           case 27: // esc
             if (router.query.focus === id) {
               e.preventDefault();
-              onFocus('');
+              onFocus(undefined);
             }
             break;
           case 9: // tab

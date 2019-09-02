@@ -1,3 +1,5 @@
+import { moveBetween, update, GunEntity, Ordered, getKey } from '../utils/ordered-list';
+
 let streams: StreamsService;
 
 export const getStreams = () => {
@@ -17,15 +19,10 @@ export type Stream = {
 };
 
 export type Message = {
-  index?: string;
   text: string;
-  parent?: {
-    '#': string;
-  };
-  _?: {
-    '#': string;
-  };
 };
+
+export type MessageEntity = Message & GunEntity & Ordered;
 
 export class StreamsService {
   private Gun;
@@ -122,11 +119,11 @@ export class StreamsService {
     }
   }
 
-  deleteMessages(messages: Message[], from: string) {
+  deleteMessages(messages: MessageEntity[], from: string) {
     const m = this.getStream(from).get('messages');
     for (const message of messages) {
       // this.getStream(from).get('messages').unset(message); doesn't work :/
-      m.put({ [this.getKey(message)]: null });
+      m.put({ [getKey(message)]: null });
     }
   }
 
@@ -138,53 +135,13 @@ export class StreamsService {
     }
   }
 
-  public updateMessage(message: Message, key: string, value: string) {
-    this.gun.get(this.getKey(message)).put({ [key]: value });
+  moveBetween(message: MessageEntity, prev: MessageEntity, next: MessageEntity) {
+    moveBetween(this.gun, message, prev, next);
   }
 
-  public getKey(o: any) {
-    return this.Gun.node.soul(o);
+  updateMessage(message: MessageEntity, key: string, value: string) {
+    update(this.gun, message, key, value);
   }
-
-  public getIndex(message: Message) {
-    if (message.index) {
-      return JSON.parse(message.index);
-    }
-
-    return [this.getKey(message)];
-  }
-
-  public moveBetween(message: Message, previous: Message, next: Message) {
-    this.updateMessage(message, 'index', JSON.stringify(this.getIndexInBetween(message, previous, next)));
-  }
-
-  private getIndexInBetween(message: Message, previous: Message, next: Message) {
-    const previousIndex = previous ? this.getIndex(previous) : [];
-    const nextIndex = next ? this.getIndex(next) : [];
-    const index = [];
-    const messageKey = this.getKey(message);
-    let i = 0;
-    while (!isBetween(messageKey, previousIndex[i], nextIndex[i])) {
-      index.push(previousIndex[i++]);
-    }
-    index.push(messageKey);
-    return index;
-  }
-
-  public compareMessages = (a: Message, b: Message) => {
-    const indexA = this.getIndex(a);
-    const indexB = this.getIndex(b);
-
-    for (let i = 0; i < Math.max(indexA.length, indexB.length); i++) {
-      if (indexA[i] !== indexB[i]) {
-        return indexA[i] === undefined || indexA[i] < indexB[i] ? -1 : 1;
-      }
-    }
-
-    return 0;
-  };
 }
 
-const isBetween = (x: string, a: string, b: string) => (a === undefined || a < x) && (b === undefined || x < b);
-
-const messageMap = m => (typeof m === 'string' ? undefined : m);
+export const messageMap = m => (typeof m === 'string' ? undefined : m);
