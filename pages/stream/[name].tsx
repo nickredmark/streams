@@ -1,10 +1,11 @@
 import Layout from '../../components/Layout';
-import { useRef, Component, useEffect, useState } from 'react';
-import { getStreams, Message, Stream, compare, MessageEntity, sort, getKey } from '../../services/Streams';
+import { useRef, Component, useEffect } from 'react';
+import { getStreams, Stream, MessageEntity } from '../../services/Streams';
 import { useRouter, NextRouter } from 'next/router';
 import { streamComparator } from '../../utils/time';
 import { pick } from 'lodash';
 import { stringify } from 'querystring';
+import { sort, getKey } from '../../utils/ordered-list';
 
 class StreamComponent extends Component<
   { router: NextRouter; streamName: string },
