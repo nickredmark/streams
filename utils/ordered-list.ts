@@ -1,7 +1,7 @@
 /* OPERATIONS FOR A UNIVERSALLY ORDERED LIST */
 
 export const moveBetween = (gun: Gun, current: GunEntity, previous: GunEntity & Ordered, next: GunEntity & Ordered) => {
-  update(gun, current, 'index', JSON.stringify(getIndexBetween(current, previous, next)));
+  update(gun, current, 'index', JSON.stringify(getIndexBetween(getKey(current), previous, next)));
 };
 
 export const sort = <T extends GunEntity & Ordered>(entities: T[]) => entities.sort(compare);
@@ -16,7 +16,8 @@ export type Gun = {
 
 export type GunEntity = {
   _: {
-    ['#']: string;
+    ['#']?: string;
+    get?: string;
   };
 };
 
@@ -28,7 +29,7 @@ export const update = (gun: Gun, o: GunEntity, key: string, value: string) => {
   gun.get(getKey(o)).put({ [key]: value });
 };
 
-export const getKey = (o: GunEntity) => o._['#'];
+export const getKey = (o: GunEntity) => o._['#'] || o._.get;
 
 type IndexPart = string | undefined | null;
 
@@ -59,11 +60,10 @@ const compareIndexPart = (a: IndexPart, b: IndexPart) => {
   return a < b ? -1 : 1;
 };
 
-export const getIndexBetween = (current: GunEntity, prev: GunEntity & Ordered, next: GunEntity & Ordered) => {
+export const getIndexBetween = (currentKey: string, prev: GunEntity & Ordered, next: GunEntity & Ordered) => {
   // note how [] = MIN and undefined = MAX
   const prevIndex = prev ? getIndex(prev) : [];
   const nextIndex = next ? getIndex(next) : undefined;
-  const currentKey = getKey(current);
 
   const index = [];
   if (nextIndex) {

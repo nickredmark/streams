@@ -15,7 +15,7 @@ import { select } from 'd3';
 type Mode = 'stream' | 'select';
 
 class StreamComponent extends Component<
-  { router: NextRouter; streamName: string },
+  { streamName: string },
   {
     messages: { [key: string]: MessageEntity };
     streams: { [key: string]: Stream };
@@ -96,7 +96,7 @@ class StreamComponent extends Component<
   };
 
   render() {
-    const { streamName, router } = this.props;
+    const { streamName } = this.props;
     const { messages: unsortedMessages, mode, streams, selectedMessages } = this.state;
     const messages = sort(Object.values(unsortedMessages));
     const tree = treeify(messages);
@@ -179,10 +179,10 @@ const Tree = ({
 }) => {
   const router = useRouter();
 
-  const focus = (node?: Node<MessageEntity>) => {
+  const focus = (focus: string | undefined) => {
     router.replace(
-      `${router.pathname}${qstringify({ ...router.query, focus: node && getKey(node.entity) })}`,
-      `${location.pathname}${qstringify({ ...router.query, focus: node && getKey(node.entity), name: undefined })}`,
+      `${router.pathname}${qstringify({ ...router.query, focus })}`,
+      `${location.pathname}${qstringify({ ...router.query, focus, name: undefined })}`,
     );
   };
 
@@ -202,20 +202,20 @@ const Tree = ({
             setSelected={setSelected}
             isFocus={router.query.focus === key}
             onFocus={value => focus(value)}
-            onFocusUp={() => node[i - 1] && focus(tree[i - 1])}
-            onFocusDown={() => node[i + 1] && focus(tree[i + 1])}
+            onFocusUp={() => tree[i - 1] && focus(getKey(tree[i - 1].entity))}
+            onFocusDown={() => tree[i + 1] && focus(getKey(tree[i + 1].entity))}
             onMoveUp={() => {
               const pprev = tree[i - 2];
               const prev = tree[i - 1];
               if (prev) {
-                getStreams().moveBetween(node.entity, pprev.entity, prev.entity);
+                getStreams().moveBetween(node.entity, pprev && pprev.entity, prev.entity);
               }
             }}
             onMoveDown={() => {
               const next = tree[i + 1];
               const nnext = tree[i + 2];
               if (next) {
-                getStreams().moveBetween(node.entity, next.entity, nnext.entity);
+                getStreams().moveBetween(node.entity, next.entity, nnext && nnext.entity);
               }
             }}
             onIndent={() => {
@@ -227,7 +227,13 @@ const Tree = ({
                 }
               }
             }}
-            onOutdent={() => { }}
+            onOutdent={() => {
+              if (node.parent && node.parent.parent) {
+                getStreams().append(node.entity, node.parent.parent.entity);
+                const parentNext = node.parent.parent.children[node.parent.index + 1]
+                getStreams().moveBetween(node.entity, node.parent.entity, parentNext && parentNext.entity)
+              }
+            }}
           />
         );
       })}
@@ -262,7 +268,7 @@ const MessageComponent = ({
   onMoveDown: () => void;
   onMoveUp: () => void;
   isFocus: boolean;
-  onFocus: (value: Node<MessageEntity> | undefined) => void;
+  onFocus: (value: string | undefined) => void;
   onFocusUp: () => void;
   onFocusDown: () => void;
   onIndent: () => void;
@@ -272,7 +278,6 @@ const MessageComponent = ({
   useEffect(() => {
     ref.current.scrollIntoView();
   }, []);
-  const router = useRouter();
 
   return (
     <div
@@ -285,53 +290,22 @@ const MessageComponent = ({
         }),
       }}
       onDoubleClick={e => {
-        onFocus(isFocus ? undefined : node);
-      }}
-      onKeyDown={e => {
-        switch (e.keyCode) {
-          case 27: // esc
-            if (router.query.focus === id) {
-              e.preventDefault();
-              onFocus(undefined);
-            }
-            break;
-          case 9: // tab
-            e.preventDefault();
-            if (e.shiftKey) {
-              onOutdent();
-            } else {
-              onIndent();
-            }
-            break;
-          case 38: // up
-            e.preventDefault();
-            if (e.ctrlKey) {
-              onMoveUp();
-            } else {
-              onFocusUp();
-            }
-            break;
-          case 40: // down
-            e.preventDefault();
-            if (e.ctrlKey) {
-              onMoveDown();
-            } else {
-              onFocusDown();
-            }
-            break;
-          default:
-            console.log(e.keyCode);
-        }
+        e.stopPropagation();
+        onFocus(isFocus ? undefined : getKey(node.entity));
       }}
     >
       {isFocus ? (
         <EditMessage
           id={id}
-          message={node.entity}
-          onChange={newText => {
-            getStreams().updateMessage(node.entity, 'text', newText);
-            onFocus(undefined);
-          }}
+          streamName={streamName}
+          node={node}
+          onMoveDown={onMoveDown}
+          onMoveUp={onMoveUp}
+          onFocus={onFocus}
+          onFocusUp={onFocusUp}
+          onFocusDown={onFocusDown}
+          onIndent={onIndent}
+          onOutdent={onOutdent}
         />
       ) : (
           <div
@@ -400,29 +374,111 @@ const MessageContent = ({ message, streamName }: { streamName: string, message: 
 
   return <span>{message.text}</span>;
 };
+
 const EditMessage = ({
   id,
-  message,
-  onChange,
+  streamName,
+  node,
+  onMoveDown,
+  onMoveUp,
+  onFocus,
+  onFocusUp,
+  onFocusDown,
+  onIndent,
+  onOutdent,
 }: {
   id: string;
-  message: MessageEntity;
-  onChange: (text: string) => void;
+  streamName: string,
+  node: Node<MessageEntity>;
+  onMoveDown: () => void;
+  onMoveUp: () => void;
+  onFocus: (value: string | undefined) => void;
+  onFocusUp: () => void;
+  onFocusDown: () => void;
+  onIndent: () => void;
+  onOutdent: () => void;
 }) => {
   const text = useRef<HTMLInputElement>(null);
   useEffect(() => {
     text.current.focus();
   }, []);
+  const router = useRouter();
+  const save = () => {
+    getStreams().updateMessage(node.entity, 'text', text.current.value);
+  }
   return (
     <form
       onSubmit={e => {
         e.preventDefault();
-
-        onChange(text.current.value);
+        save();
+        onFocus(undefined);
+      }}
+      onKeyDown={e => {
+        switch (e.keyCode) {
+          case 13: // enter
+            e.stopPropagation();
+            save();
+            if (e.ctrlKey) {
+              const key = getStreams().createMessage(streamName, {
+                text: ''
+              }, node.entity, node.children[node.children.length - 1] && node.children[node.children.length - 1].entity)
+              onFocus(key);
+            } else {
+              const key = getStreams().createMessage(streamName, {
+                text: ''
+              }, node.parent.entity, node.entity, node.parent.children[node.index + 1] && node.parent.children[node.index + 1].entity)
+              onFocus(key);
+            }
+            break;
+          case 8: // del
+            e.stopPropagation();
+            if (node.entity.text === '' || e.ctrlKey) {
+              getStreams().deleteMessages([node.entity], streamName)
+            }
+            break;
+          case 27: // esc
+            if (router.query.focus === id) {
+              e.stopPropagation();
+              e.preventDefault();
+              onFocus(undefined);
+            }
+            break;
+          case 9: // tab
+            e.preventDefault();
+            e.stopPropagation();
+            save();
+            if (e.shiftKey) {
+              onOutdent();
+            } else {
+              onIndent();
+            }
+            break;
+          case 38: // up
+            e.stopPropagation();
+            e.preventDefault();
+            save();
+            if (e.ctrlKey) {
+              onMoveUp();
+            } else {
+              onFocusUp();
+            }
+            break;
+          case 40: // down
+            e.stopPropagation();
+            e.preventDefault();
+            save();
+            if (e.ctrlKey) {
+              onMoveDown();
+            } else {
+              onFocusDown();
+            }
+            break;
+          default:
+            console.log(e.keyCode);
+        }
       }}
     >
       <input
-        onKeyDown={e => { }}
         key={id}
         id={id}
         style={{
@@ -434,7 +490,7 @@ const EditMessage = ({
           color: 'inherit',
         }}
         ref={text}
-        defaultValue={message.text}
+        defaultValue={node.entity.text}
       />
     </form>
   );
@@ -476,7 +532,7 @@ const MoveMessages = ({ messages, setSelectedMessages, selectedMessages, streamN
 export default () => {
   const router = useRouter();
   return (
-    <Layout>{router.query.name && <StreamComponent router={router} streamName={router.query.name as string} />}</Layout>
+    <Layout>{router.query.name && <StreamComponent streamName={router.query.name as string} />}</Layout>
   );
 };
 

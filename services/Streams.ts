@@ -1,4 +1,4 @@
-import { moveBetween, update, GunEntity, Ordered, getKey } from '../utils/ordered-list';
+import { moveBetween, update, GunEntity, Ordered, getKey, getIndexBetween } from '../utils/ordered-list';
 
 let streams: StreamsService;
 
@@ -8,7 +8,7 @@ export const getStreams = () => {
       process.env.NAMESPACE,
       process.env.SERVERS.split(',').filter(Boolean),
       process.env.STREAMS &&
-        process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
+      process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
     );
   }
   return streams;
@@ -53,17 +53,24 @@ export class StreamsService {
       });
   }
 
-  async createMessage(stream: string, message: Message) {
+  createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
     const ref = this.gun
       .get(this.namespace)
       .get(stream)
       .get('messages')
       .set(message);
+    if (parent) {
+      this.append(ref, parent);
+    }
+    if (prev || next) {
+      this.moveBetween(ref, prev, next);
+    }
     this.gun
       .get(this.namespace)
       .get(stream)
       .get('lastMessage')
       .put(ref);
+    return getKey(ref);
   }
 
   onStream(listener: (data: Stream, key: string) => void) {
@@ -82,14 +89,14 @@ export class StreamsService {
       this.gun
         .get(this.streams[streamName])
         .get('messages')
-        .map()
+        .map(messageMap)
         .on(listener);
     } else {
       this.gun
         .get(this.namespace)
         .get(streamName)
         .get('messages')
-        .map()
+        .map(messageMap)
         .on(listener);
     }
   }
@@ -119,8 +126,8 @@ export class StreamsService {
     }
   }
 
-  deleteMessages(messages: MessageEntity[], from: string) {
-    const m = this.getStream(from).get('messages');
+  deleteMessages(messages: MessageEntity[], stream: string) {
+    const m = this.getStream(stream).get('messages');
     for (const message of messages) {
       // this.getStream(from).get('messages').unset(message); doesn't work :/
       m.put({ [getKey(message)]: null });
@@ -148,4 +155,4 @@ export class StreamsService {
   }
 }
 
-export const messageMap = m => (typeof m === 'string' ? undefined : m);
+export const messageMap = m => m && typeof m === 'object' && m._ ? m : undefined;

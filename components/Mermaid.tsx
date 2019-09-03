@@ -5,7 +5,6 @@ if (process.browser) {
     mermaid = require('mermaid');
     mermaid.initialize({
         startOnLoad: false,
-        logLevel: 1,
     });
 }
 
