@@ -57,7 +57,7 @@ const compareIndexPart = (a: IndexPart, b: IndexPart) => {
     return 1;
   }
   return a < b ? -1 : 1;
-}
+};
 
 export const getIndexBetween = (current: GunEntity, prev: GunEntity & Ordered, next: GunEntity & Ordered) => {
   // note how [] = MIN and undefined = MAX
@@ -76,7 +76,7 @@ export const getIndexBetween = (current: GunEntity, prev: GunEntity & Ordered, n
       index.push(prevIndex[index.length]);
     }
   }
-  // make sure we are after prev
+  // make sure we are before prev
   while (compareIndexPart(currentKey, prevIndex[index.length]) <= 0) {
     index.push(prevIndex[index.length]);
   }

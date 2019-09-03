@@ -1,14 +1,18 @@
 import Layout from '../../components/Layout';
 import { useRef, Component, useEffect } from 'react';
-import { getStreams, Stream, MessageEntity } from '../../services/Streams';
+import { getStreams, Stream, MessageEntity, Message } from '../../services/Streams';
 import { useRouter, NextRouter } from 'next/router';
 import { streamComparator } from '../../utils/time';
 import { pick } from 'lodash';
-import { NewMessage } from "../../components/NewMessage";
+import { NewMessage } from '../../components/NewMessage';
 import dragDrop from 'drag-drop';
 import { stringify } from 'querystring';
-import { sort, getKey, getIndex } from '../../utils/ordered-list';
 import { Chart } from '../../components/Chart';
+import { sort, getKey } from '../../utils/ordered-list';
+import { treeify, Node } from '../../utils/trees';
+import { select } from 'd3';
+
+type Mode = 'stream' | 'select';
 
 class StreamComponent extends Component<
   { router: NextRouter; streamName: string },
@@ -16,7 +20,7 @@ class StreamComponent extends Component<
     messages: { [key: string]: MessageEntity };
     streams: { [key: string]: Stream };
     selectedMessages: string[];
-    mode: 'stream' | 'select';
+    mode: Mode;
   }
   > {
   constructor(props) {
@@ -60,9 +64,9 @@ class StreamComponent extends Component<
       }));
     });
 
-    window.addEventListener("keydown", this.onKeyDown);
+    window.addEventListener('keydown', this.onKeyDown);
 
-    dragDrop('body', async (files) => {
+    dragDrop('body', async files => {
       for (const file of files) {
         const message = await toBase64(file);
         if (message.length > 1000000) {
@@ -95,12 +99,7 @@ class StreamComponent extends Component<
     const { streamName, router } = this.props;
     const { messages: unsortedMessages, mode, streams, selectedMessages } = this.state;
     const messages = sort(Object.values(unsortedMessages));
-    const focus = (message?: MessageEntity) => {
-      router.replace(
-        `${router.pathname}${qstringify({ ...router.query, focus: message && getKey(message) })}`,
-        `${location.pathname}${qstringify({ ...router.query, focus: message && getKey(message), name: undefined })}`,
-      );
-    };
+    const tree = treeify(messages);
 
     return (
       <>
@@ -124,32 +123,19 @@ class StreamComponent extends Component<
             padding: '0.5rem',
           }}
         >
-          {messages.map((message, i) => {
-            const key = getKey(message);
-            return (
-              <MessageComponent
-                key={key}
-                streamName={streamName}
-                id={key}
-                message={message}
-                mode={mode}
-                selected={selectedMessages.includes(key)}
-                setSelected={selected =>
-                  this.setState({
-                    selectedMessages: selected
-                      ? [...selectedMessages.filter(k => k !== key), key]
-                      : selectedMessages.filter(k => k !== key),
-                  })
-                }
-                isFocus={router.query.focus === key}
-                onFocus={value => focus(value)}
-                onFocusUp={() => messages[i - 1] && focus(messages[i - 1])}
-                onFocusDown={() => messages[i + 1] && focus(messages[i + 1])}
-                onMoveUp={() => messages[i - 1] && getStreams().moveBetween(message, messages[i - 2], messages[i - 1])}
-                onMoveDown={() => messages[i + 1] && getStreams().moveBetween(message, messages[i + 1], messages[i + 2])}
-              />
-            );
-          })}
+          <Tree
+            streamName={streamName}
+            mode={mode}
+            selectedMessages={selectedMessages}
+            setSelected={key =>
+              this.setState({
+                selectedMessages: selectedMessages.includes(key)
+                  ? [...selectedMessages.filter(k => k !== key), key]
+                  : selectedMessages.filter(k => k !== key),
+              })
+            }
+            tree={tree}
+          />
         </div>
         {mode === 'select' && (
           <MoveMessages
@@ -170,26 +156,117 @@ class StreamComponent extends Component<
   }
 }
 
-const toBase64 = file => new Promise<string>((resolve, reject) => {
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = () => resolve(reader.result as string);
-  reader.onerror = error => reject(error);
-});
+const toBase64 = file =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+
+const Tree = ({
+  streamName,
+  mode,
+  selectedMessages,
+  setSelected,
+  tree,
+}: {
+  mode: Mode;
+  streamName: string;
+  selectedMessages: string[];
+  setSelected: (string) => void;
+  tree: Node<MessageEntity>[];
+}) => {
+  const router = useRouter();
+
+  const focus = (node?: Node<MessageEntity>) => {
+    router.replace(
+      `${router.pathname}${qstringify({ ...router.query, focus: node && getKey(node.entity) })}`,
+      `${location.pathname}${qstringify({ ...router.query, focus: node && getKey(node.entity), name: undefined })}`,
+    );
+  };
+
+  return (
+    <div>
+      {tree.map((node, i) => {
+        const key = getKey(node.entity);
+        return (
+          <MessageComponent
+            key={key}
+            streamName={streamName}
+            id={key}
+            node={node}
+            mode={mode}
+            selectedMessages={selectedMessages}
+            selected={selectedMessages.includes(key)}
+            setSelected={setSelected}
+            isFocus={router.query.focus === key}
+            onFocus={value => focus(value)}
+            onFocusUp={() => node[i - 1] && focus(tree[i - 1])}
+            onFocusDown={() => node[i + 1] && focus(tree[i + 1])}
+            onMoveUp={() => {
+              const pprev = tree[i - 2];
+              const prev = tree[i - 1];
+              if (prev) {
+                getStreams().moveBetween(node.entity, pprev.entity, prev.entity);
+              }
+            }}
+            onMoveDown={() => {
+              const next = tree[i + 1];
+              const nnext = tree[i + 2];
+              if (next) {
+                getStreams().moveBetween(node.entity, next.entity, nnext.entity);
+              }
+            }}
+            onIndent={() => {
+              const prev = tree[i - 1];
+              if (prev) {
+                getStreams().append(node.entity, prev.entity);
+                if (prev.children.length) {
+                  getStreams().moveBetween(node.entity, prev.children[prev.children.length - 1].entity, undefined);
+                }
+              }
+            }}
+            onOutdent={() => { }}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 const MessageComponent = ({
   streamName,
   id,
-  message,
+  node,
   mode,
+  selectedMessages,
   selected,
   setSelected,
   onMoveDown,
   onMoveUp,
-  onFocus,
   isFocus,
+  onFocus,
   onFocusUp,
   onFocusDown,
+  onIndent,
+  onOutdent,
+}: {
+  streamName: string;
+  id: string;
+  node: Node<MessageEntity>;
+  mode: Mode;
+  selectedMessages: string[];
+  selected: boolean;
+  setSelected: (selected: boolean) => void;
+  onMoveDown: () => void;
+  onMoveUp: () => void;
+  isFocus: boolean;
+  onFocus: (value: Node<MessageEntity> | undefined) => void;
+  onFocusUp: () => void;
+  onFocusDown: () => void;
+  onIndent: () => void;
+  onOutdent: () => void;
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -208,7 +285,7 @@ const MessageComponent = ({
         }),
       }}
       onDoubleClick={e => {
-        onFocus(isFocus ? undefined : message);
+        onFocus(isFocus ? undefined : node);
       }}
       onKeyDown={e => {
         switch (e.keyCode) {
@@ -219,7 +296,12 @@ const MessageComponent = ({
             }
             break;
           case 9: // tab
-            // e.preventDefault();
+            e.preventDefault();
+            if (e.shiftKey) {
+              onOutdent();
+            } else {
+              onIndent();
+            }
             break;
           case 38: // up
             e.preventDefault();
@@ -245,9 +327,9 @@ const MessageComponent = ({
       {isFocus ? (
         <EditMessage
           id={id}
-          message={message}
+          message={node.entity}
           onChange={newText => {
-            getStreams().updateMessage(message, 'text', newText);
+            getStreams().updateMessage(node.entity, 'text', newText);
             onFocus(undefined);
           }}
         />
@@ -267,7 +349,7 @@ const MessageComponent = ({
             }}
           >
             <a id={id} />
-            <MessageContent message={message} streamName={streamName} />
+            <MessageContent message={node.entity} streamName={streamName} />
             <a
               className="message-permalink"
               style={{
@@ -282,26 +364,51 @@ const MessageComponent = ({
           </a>
           </div>
         )}
+      {node.children.length > 0 && (
+        <div
+          style={{
+            marginLeft: '1rem',
+          }}
+        >
+          <Tree streamName={streamName} mode={mode} selectedMessages={selectedMessages} setSelected={setSelected} tree={node.children} />
+        </div>
+      )}
     </div>
   );
 };
 
-const MessageContent = ({ message, streamName }) => {
+const MessageContent = ({ message, streamName }: { streamName: string, message: MessageEntity }) => {
   if (/^data:image\//.exec(message.text)) {
-    return <img src={message.text} />
+    return <img src={message.text} />;
   }
   if (/^https?:\/\/|www/.exec(message.text)) {
-    return <a href={message.text} style={{
-      color: "inherit"
-    }} target="_blank">{message.text}</a>
+    return (
+      <a
+        href={message.text}
+        style={{
+          color: 'inherit',
+        }}
+        target="_blank"
+      >
+        {message.text}
+      </a>
+    );
   }
   if (message.text === 'CHART') {
     return <Chart streamName={streamName} />
   }
 
-  return <span>{message.text}</span>
-}
-const EditMessage = ({ id, message, onChange }) => {
+  return <span>{message.text}</span>;
+};
+const EditMessage = ({
+  id,
+  message,
+  onChange,
+}: {
+  id: string;
+  message: MessageEntity;
+  onChange: (text: string) => void;
+}) => {
   const text = useRef<HTMLInputElement>(null);
   useEffect(() => {
     text.current.focus();
