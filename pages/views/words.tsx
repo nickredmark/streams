@@ -42,7 +42,11 @@ class Statistics extends Component<{}, { messages: { [key: string]: Message }, d
 
         const words = {}
         for (const message of Object.values(this.state.messages)) {
-            for (const w of (message.text || '').toLowerCase().split(/[ ,()\.'":/]+/g).filter(w => w.length > 1 && !commonWords.includes(w))) {
+            const text = (message.text || '');
+            if (/^data:image\//.exec(text)) {
+                continue;
+            }
+            for (const w of text.toLowerCase().split(/[ ,()\.'":/]+/g).filter(w => w.length > 1 && w.length < 20 && !commonWords.includes(w))) {
                 words[w] = (words[w] ? words[w] : 0) + 1
             }
         }
