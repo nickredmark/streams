@@ -51,7 +51,6 @@ export default class extends Component<{}, { initialized: boolean, logged: boole
         }
 
         img, video {
-          width: 100%;
           max-width: 30rem;
         }
 
