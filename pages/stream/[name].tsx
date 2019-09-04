@@ -1,5 +1,5 @@
 import Layout from '../../components/Layout';
-import { useRef, Component, useEffect } from 'react';
+import { useRef, Component, useEffect, useState } from 'react';
 import { getStreams, Stream, MessageEntity, Message } from '../../services/Streams';
 import { useRouter, NextRouter } from 'next/router';
 import { streamComparator } from '../../utils/time';
@@ -398,13 +398,20 @@ const EditMessage = ({
   onIndent: () => void;
   onOutdent: () => void;
 }) => {
+  const [dirty, setDirty] = useState(false)
   const text = useRef<HTMLInputElement>(null);
   useEffect(() => {
     text.current.focus();
+    return () => {
+      save();
+    }
   }, []);
   const router = useRouter();
   const save = () => {
-    getStreams().updateMessage(node.entity, 'text', text.current.value);
+    if (dirty) {
+      getStreams().updateMessage(node.entity, 'text', text.current.value);
+      setDirty(false);
+    }
   }
   return (
     <form
@@ -412,70 +419,6 @@ const EditMessage = ({
         e.preventDefault();
         save();
         onFocus(undefined);
-      }}
-      onKeyDown={e => {
-        switch (e.keyCode) {
-          case 13: // enter
-            e.stopPropagation();
-            save();
-            if (e.ctrlKey) {
-              const key = getStreams().createMessage(streamName, {
-                text: ''
-              }, node.entity, node.children[node.children.length - 1] && node.children[node.children.length - 1].entity)
-              onFocus(key);
-            } else {
-              const key = getStreams().createMessage(streamName, {
-                text: ''
-              }, node.parent.entity, node.entity, node.parent.children[node.index + 1] && node.parent.children[node.index + 1].entity)
-              onFocus(key);
-            }
-            break;
-          case 8: // del
-            e.stopPropagation();
-            if (node.entity.text === '' || e.ctrlKey) {
-              getStreams().deleteMessages([node.entity], streamName)
-            }
-            break;
-          case 27: // esc
-            if (router.query.focus === id) {
-              e.stopPropagation();
-              e.preventDefault();
-              onFocus(undefined);
-            }
-            break;
-          case 9: // tab
-            e.preventDefault();
-            e.stopPropagation();
-            save();
-            if (e.shiftKey) {
-              onOutdent();
-            } else {
-              onIndent();
-            }
-            break;
-          case 38: // up
-            e.stopPropagation();
-            e.preventDefault();
-            save();
-            if (e.ctrlKey) {
-              onMoveUp();
-            } else {
-              onFocusUp();
-            }
-            break;
-          case 40: // down
-            e.stopPropagation();
-            e.preventDefault();
-            save();
-            if (e.ctrlKey) {
-              onMoveDown();
-            } else {
-              onFocusDown();
-            }
-            break;
-          default:
-            console.log(e.keyCode);
-        }
       }}
     >
       <input
@@ -491,6 +434,90 @@ const EditMessage = ({
         }}
         ref={text}
         defaultValue={node.entity.text}
+        onChange={() => {
+          setDirty(true);
+        }}
+        onBlur={() => {
+          save();
+        }}
+        onKeyDown={async e => {
+          switch (e.keyCode) {
+            case 13: // enter
+              e.stopPropagation();
+              save();
+              if (e.ctrlKey) {
+                const key = await getStreams().createMessage(streamName, {
+                  text: ''
+                }, node.entity, node.children[node.children.length - 1] && node.children[node.children.length - 1].entity)
+                onFocus(key);
+              } else {
+                const key = await getStreams().createMessage(streamName, {
+                  text: ''
+                }, node.parent.entity, node.entity, node.parent.children[node.index + 1] && node.parent.children[node.index + 1].entity)
+                onFocus(key);
+              }
+              break;
+            case 8: // del
+              e.stopPropagation();
+              if (text.current.value === '' || e.ctrlKey) {
+                getStreams().deleteMessages([node.entity], streamName)
+              }
+              break;
+            case 27: // esc
+              if (router.query.focus === id) {
+                e.stopPropagation();
+                e.preventDefault();
+                setDirty(false);
+                onFocus(undefined);
+              }
+              break;
+            case 9: // tab
+              e.preventDefault();
+              e.stopPropagation();
+              save();
+              if (e.shiftKey) {
+                onOutdent();
+              } else {
+                onIndent();
+              }
+              break;
+            case 38: // up
+              e.stopPropagation();
+              e.preventDefault();
+              save();
+              if (e.ctrlKey) {
+                onMoveUp();
+              } else {
+                onFocusUp();
+              }
+              break;
+            case 40: // down
+              e.stopPropagation();
+              e.preventDefault();
+              save();
+              if (e.ctrlKey) {
+                onMoveDown();
+              } else {
+                onFocusDown();
+              }
+              break;
+            default:
+              console.log(e.keyCode);
+          }
+        }}
+        onPaste={async e => {
+          const text = e.clipboardData.getData("Text");
+          const lines = text ? text.trim().split("\n") : [];
+          if (lines.length > 1 && node.children.length === 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            for (const line of lines) {
+              await getStreams().createMessage(streamName, {
+                text: line,
+              }, node.entity);
+            }
+          }
+        }}
       />
     </form>
   );

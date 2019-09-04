@@ -53,12 +53,23 @@ export class StreamsService {
       });
   }
 
-  createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
-    const ref = this.gun
-      .get(this.namespace)
-      .get(stream)
-      .get('messages')
-      .set(message);
+  async createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
+    let ref;
+    for (let i = 0; i < 3; i++) {
+      ref = this.gun
+        .get(this.namespace)
+        .get(stream)
+        .get('messages')
+        .set(message);
+      if (ref) {
+        break;
+      }
+      await new Promise(res => setTimeout(res, 0));
+    }
+    if (!ref) {
+      console.log(stream, message);
+      throw new Error('Failed 3 times to create message.')
+    }
     if (parent) {
       this.append(ref, parent);
     }
