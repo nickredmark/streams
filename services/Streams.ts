@@ -18,6 +18,8 @@ export type Stream = {
   name: string;
 };
 
+export type StreamEntity = Stream & GunEntity;
+
 export type Message = {
   text: string;
 };
@@ -31,7 +33,10 @@ export class StreamsService {
 
   constructor(private namespace: string, servers: string[], private streams?: { [key: string]: string }) {
     this.Gun = (window as any).Gun;
-    this.gun = this.Gun(...servers);
+    this.gun = this.Gun({
+      localStorage: false,
+      peers: servers
+    });
     this.user = this.gun.user();
   }
 

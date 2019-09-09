@@ -30,6 +30,10 @@ export default class extends Component<{}, { initialized: boolean, logged: boole
     }}>
       <Head>
         <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gun/lib/radix.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gun/lib/radisk.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gun/lib/store.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gun/lib/rindexed.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/gun/lib/webrtc.js"></script>
       </Head>
