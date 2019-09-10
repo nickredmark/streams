@@ -35,34 +35,34 @@ class StreamComponent extends Component<
 
   async componentDidMount() {
     const { streamName } = this.props;
-    getStreams().onMessage(streamName, (message, key) => {
-      if (message) {
-        this.setState(state => ({
-          messages: {
-            ...state.messages,
-            [key]: {
-              ...state.messages[key],
-              ...message,
-            },
-          },
-        }));
-      } else {
-        this.setState(state => ({
-          messages: pick(state.messages, Object.keys(state.messages).filter(k => k !== key)),
-        }));
-      }
+    getStreams().onMessages(streamName, (batch) => {
+      this.setState(state => {
+        const messages = { ...state.messages };
+        for (const { data, key } of batch) {
+          if (data) {
+            messages[key] = {
+              ...messages[key],
+              ...data,
+            }
+          } else {
+            delete (messages[key])
+          }
+        }
+        return { messages }
+      })
     });
-    getStreams().onStream((stream, key) => {
-      this.setState(state => ({
-        streams: {
-          ...state.streams,
-          [key]: {
-            ...state.streams[key],
-            ...stream,
-          },
-        },
-      }));
-    });
+    getStreams().onStreams((batch) => {
+      this.setState(state => {
+        const streams = { ...state.streams };
+        for (const { data, key } of batch) {
+          streams[key] = {
+            ...streams[key],
+            ...data,
+          }
+        }
+        return { streams }
+      })
+    })
 
     window.addEventListener('keydown', this.onKeyDown);
 
@@ -96,6 +96,7 @@ class StreamComponent extends Component<
   };
 
   render() {
+    console.log('render')
     const { streamName } = this.props;
     const { messages: unsortedMessages, mode, streams, selectedMessages } = this.state;
     const messages = sort(Object.values(unsortedMessages));
@@ -355,7 +356,7 @@ const MessageContent = ({ message, streamName }: { streamName: string, message: 
   if (/^data:image\//.exec(message.text)) {
     return <img src={message.text} />;
   }
-  if (/^https?:\/\/|www/.exec(message.text)) {
+  if (/^(https?:\/\/|www)/.exec(message.text)) {
     return (
       <a
         href={message.text}

@@ -1,4 +1,5 @@
 import { moveBetween, update, GunEntity, Ordered, getKey, getIndexBetween } from '../utils/ordered-list';
+import moment from 'moment';
 
 let streams: StreamsService;
 
@@ -100,21 +101,19 @@ export class StreamsService {
     }
   }
 
+  onStreams(listener: (data: { data: Stream, key: string }[]) => void) {
+    batch((cb) => this.onStream(cb), listener);
+  }
+
   onMessage(streamName: string, listener: (data: Message, key: string) => void) {
-    if (this.streams) {
-      this.gun
-        .get(this.streams[streamName])
-        .get('messages')
-        .map(messageMap)
-        .on(listener);
-    } else {
-      this.gun
-        .get(this.namespace)
-        .get(streamName)
-        .get('messages')
-        .map(messageMap)
-        .on(listener);
-    }
+    this.getStream(streamName)
+      .get('messages')
+      .map(messageMap)
+      .on(listener);
+  }
+
+  onMessages(streamName: string, listener: (data: { data: Message, key: string }[]) => void) {
+    batch((cb) => this.onMessage(streamName, cb), listener)
   }
 
   onAnyMessage(listener: (data: Message, key) => void) {
@@ -172,3 +171,31 @@ export class StreamsService {
 }
 
 export const messageMap = m => m && typeof m === 'object' && m._ ? m : undefined;
+
+const INTERVAL = 200;
+
+const batch = (fn, listener) => {
+  let lastMessage;
+  let queue = [];
+  fn((data, key) => {
+    if (queue.length) {
+      queue.push({ data, key });
+      return;
+    }
+
+    if (!lastMessage) {
+      lastMessage = moment();
+      listener([{ data, key }]);
+      return;
+    }
+
+    if (moment().subtract(INTERVAL, 'ms') < lastMessage) {
+      queue.push({ data, key })
+      setTimeout(() => {
+        listener(queue);
+        lastMessage = undefined;
+        queue = [];
+      }, INTERVAL);
+    }
+  })
+}

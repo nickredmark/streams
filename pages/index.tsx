@@ -15,16 +15,17 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
   }
 
   async componentDidMount() {
-    getStreams().onStream((stream, key) => {
-      this.setState(state => ({
-        streams: {
-          ...state.streams,
-          [key]: {
-            ...state.streams[key],
-            ...stream,
+    getStreams().onStreams((batch) => {
+      this.setState(state => {
+        const streams = { ...state.streams };
+        for (const { data, key } of batch) {
+          streams[key] = {
+            ...streams[key],
+            ...data,
           }
         }
-      }))
+        return { streams }
+      })
     })
   }
 
