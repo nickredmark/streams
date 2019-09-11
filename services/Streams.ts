@@ -183,19 +183,17 @@ const batch = (fn, listener) => {
       return;
     }
 
-    if (!lastMessage) {
+    if (!lastMessage || lastMessage < moment().subtract(INTERVAL, 'ms')) {
       lastMessage = moment();
       listener([{ data, key }]);
       return;
     }
 
-    if (moment().subtract(INTERVAL, 'ms') < lastMessage) {
-      queue.push({ data, key })
-      setTimeout(() => {
-        listener(queue);
-        lastMessage = undefined;
-        queue = [];
-      }, INTERVAL);
-    }
+    queue.push({ data, key })
+    setTimeout(() => {
+      listener(queue);
+      lastMessage = undefined;
+      queue = [];
+    }, INTERVAL);
   })
 }
