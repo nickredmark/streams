@@ -9,7 +9,7 @@ export const getStreams = () => {
       process.env.NAMESPACE,
       process.env.SERVERS.split(',').filter(Boolean),
       process.env.STREAMS &&
-      process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
+        process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
     );
   }
   return streams;
@@ -36,7 +36,7 @@ export class StreamsService {
     this.Gun = (window as any).Gun;
     this.gun = this.Gun({
       localStorage: false,
-      peers: servers
+      peers: servers,
     });
     this.user = this.gun.user();
   }
@@ -51,42 +51,40 @@ export class StreamsService {
   }
 
   async createStream(name: string) {
-    this.gun
-      .get(this.namespace)
-      .get(name)
-      .put({
-        name,
-      });
+    await new Promise(res =>
+      this.gun
+        .get(this.namespace)
+        .get(name)
+        .put(
+          {
+            name,
+          },
+          res,
+        ),
+    );
   }
 
   async createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
-    let ref;
-    for (let i = 0; i < 3; i++) {
-      ref = this.gun
+    const ref = await new Promise<any>(res => {
+      const ref = this.gun
         .get(this.namespace)
         .get(stream)
         .get('messages')
-        .set(message);
-      if (ref) {
-        break;
-      }
-      await new Promise(res => setTimeout(res, 0));
-    }
-    if (!ref) {
-      console.log(stream, message);
-      throw new Error('Failed 3 times to create message.')
-    }
+        .set(message, () => res(ref));
+    });
     if (parent) {
-      this.append(ref, parent);
+      await this.append(ref, parent);
     }
     if (prev || next) {
-      this.moveBetween(ref, prev, next);
+      await this.moveBetween(ref, prev, next);
     }
-    this.gun
-      .get(this.namespace)
-      .get(stream)
-      .get('lastMessage')
-      .put(ref);
+    await new Promise(res =>
+      this.gun
+        .get(this.namespace)
+        .get(stream)
+        .get('lastMessage')
+        .put(ref, res),
+    );
     return getKey(ref);
   }
 
@@ -101,8 +99,8 @@ export class StreamsService {
     }
   }
 
-  onStreams(listener: (data: { data: Stream, key: string }[]) => void) {
-    batch((cb) => this.onStream(cb), listener);
+  onStreams(listener: (data: { data: Stream; key: string }[]) => void) {
+    batch(cb => this.onStream(cb), listener);
   }
 
   onMessage(streamName: string, listener: (data: Message, key: string) => void) {
@@ -112,8 +110,8 @@ export class StreamsService {
       .on(listener);
   }
 
-  onMessages(streamName: string, listener: (data: { data: Message, key: string }[]) => void) {
-    batch((cb) => this.onMessage(streamName, cb), listener)
+  onMessages(streamName: string, listener: (data: { data: Message; key: string }[]) => void) {
+    batch(cb => this.onMessage(streamName, cb), listener);
   }
 
   onAnyMessage(listener: (data: Message, key) => void) {
@@ -125,27 +123,18 @@ export class StreamsService {
       .on(listener);
   }
 
-  setStreamName(key: string, name: string) {
-    this.gun
-      .get(this.namespace)
-      .get(key)
-      .put({
-        name,
-      });
-  }
-
-  copyMessages(messages: Message[], to: string) {
+  async copyMessages(messages: Message[], to: string) {
     const m = this.getStream(to).get('messages');
     for (const message of messages) {
-      m.set(message);
+      await new Promise(res => m.set(message, res));
     }
   }
 
-  deleteMessages(messages: MessageEntity[], stream: string) {
+  async deleteMessages(messages: MessageEntity[], stream: string) {
     const m = this.getStream(stream).get('messages');
     for (const message of messages) {
       // this.getStream(from).get('messages').unset(message); doesn't work :/
-      m.put({ [getKey(message)]: null });
+      await new Promise(res => m.put({ [getKey(message)]: null }, res));
     }
   }
 
@@ -157,20 +146,20 @@ export class StreamsService {
     }
   }
 
-  moveBetween(message: MessageEntity, prev: MessageEntity, next: MessageEntity) {
-    moveBetween(this.gun, message, prev, next);
+  async moveBetween(message: MessageEntity, prev: MessageEntity, next: MessageEntity) {
+    await moveBetween(this.gun, message, prev, next);
   }
 
-  updateMessage(message: MessageEntity, key: string, value: string) {
-    update(this.gun, message, key, value);
+  async updateMessage(message: MessageEntity, key: string, value: string) {
+    await update(this.gun, message, key, value);
   }
 
-  append(message: MessageEntity, parent: MessageEntity) {
-    this.gun.get(getKey(message)).put({ parent });
+  async append(message: MessageEntity, parent: MessageEntity) {
+    await new Promise(res => this.gun.get(getKey(message)).put({ parent }, res));
   }
 }
 
-export const messageMap = m => m && typeof m === 'object' && m._ ? m : undefined;
+export const messageMap = m => (m && typeof m === 'object' && m._ ? m : undefined);
 
 const INTERVAL = 200;
 
@@ -189,11 +178,23 @@ const batch = (fn, listener) => {
       return;
     }
 
-    queue.push({ data, key })
+    queue.push({ data, key });
     setTimeout(() => {
       listener(queue);
       lastMessage = undefined;
       queue = [];
     }, INTERVAL);
-  })
-}
+  });
+};
+
+const retry = async fn => {
+  let res;
+  for (let i = 0; i < 3; i++) {
+    res = fn();
+    if (res) {
+      return res;
+    }
+    await new Promise(res => setTimeout(res, 0));
+  }
+  throw new Error('Failed 3 times.');
+};

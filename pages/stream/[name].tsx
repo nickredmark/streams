@@ -217,34 +217,34 @@ const Tree = ({
             onFocus={value => focus(value)}
             onFocusUp={() => tree[i - 1] && focus(getKey(tree[i - 1].entity))}
             onFocusDown={() => tree[i + 1] && focus(getKey(tree[i + 1].entity))}
-            onMoveUp={() => {
+            onMoveUp={async () => {
               const pprev = tree[i - 2];
               const prev = tree[i - 1];
               if (prev) {
-                getStreams().moveBetween(node.entity, pprev && pprev.entity, prev.entity);
+                await getStreams().moveBetween(node.entity, pprev && pprev.entity, prev.entity);
               }
             }}
-            onMoveDown={() => {
+            onMoveDown={async () => {
               const next = tree[i + 1];
               const nnext = tree[i + 2];
               if (next) {
-                getStreams().moveBetween(node.entity, next.entity, nnext && nnext.entity);
+                await getStreams().moveBetween(node.entity, next.entity, nnext && nnext.entity);
               }
             }}
-            onIndent={() => {
+            onIndent={async () => {
               const prev = tree[i - 1];
               if (prev) {
-                getStreams().append(node.entity, prev.entity);
+                await getStreams().append(node.entity, prev.entity);
                 if (prev.children.length) {
-                  getStreams().moveBetween(node.entity, prev.children[prev.children.length - 1].entity, undefined);
+                  await getStreams().moveBetween(node.entity, prev.children[prev.children.length - 1].entity, undefined);
                 }
               }
             }}
-            onOutdent={() => {
+            onOutdent={async () => {
               if (node.parent && node.parent.parent) {
-                getStreams().append(node.entity, node.parent.parent.entity);
+                await getStreams().append(node.entity, node.parent.parent.entity);
                 const parentNext = node.parent.parent.children[node.parent.index + 1];
-                getStreams().moveBetween(node.entity, node.parent.entity, parentNext && parentNext.entity);
+                await getStreams().moveBetween(node.entity, node.parent.entity, parentNext && parentNext.entity);
               }
             }}
           />
@@ -428,9 +428,9 @@ const EditMessage = ({
     };
   }, []);
   const router = useRouter();
-  const save = () => {
+  const save = async () => {
     if (dirty) {
-      getStreams().updateMessage(node.entity, 'text', text.current.value);
+      await getStreams().updateMessage(node.entity, 'text', text.current.value);
       setDirty(false);
     }
   };
@@ -492,7 +492,7 @@ const EditMessage = ({
             case 8: // del
               e.stopPropagation();
               if (text.current.value === '' || e.ctrlKey) {
-                getStreams().deleteMessages([node.entity], streamName);
+                await getStreams().deleteMessages([node.entity], streamName);
               }
               break;
             case 27: // esc

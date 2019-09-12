@@ -1,7 +1,12 @@
 /* OPERATIONS FOR A UNIVERSALLY ORDERED LIST */
 
-export const moveBetween = (gun: Gun, current: GunEntity, previous: GunEntity & Ordered, next: GunEntity & Ordered) => {
-  update(gun, current, 'index', JSON.stringify(getIndexBetween(getKey(current), previous, next)));
+export const moveBetween = async (
+  gun: Gun,
+  current: GunEntity,
+  previous: GunEntity & Ordered,
+  next: GunEntity & Ordered,
+) => {
+  await update(gun, current, 'index', JSON.stringify(getIndexBetween(getKey(current), previous, next)));
 };
 
 export const sort = <T extends GunEntity & Ordered>(entities: T[]) => entities.sort(compare);
@@ -10,7 +15,7 @@ export const sort = <T extends GunEntity & Ordered>(entities: T[]) => entities.s
 
 export type Gun = {
   get: (key: string) => Gun;
-  put: (o: Object) => Gun;
+  put: (o: Object, cb: () => void) => Gun;
   set: (o: Object) => Gun;
 };
 
@@ -25,8 +30,8 @@ export type Ordered = {
   index: string;
 };
 
-export const update = (gun: Gun, o: GunEntity, key: string, value: string) => {
-  gun.get(getKey(o)).put({ [key]: value });
+export const update = async (gun: Gun, o: GunEntity, key: string, value: string) => {
+  await new Promise(res => gun.get(getKey(o)).put({ [key]: value }, res));
 };
 
 export const getKey = (o: GunEntity) => o._['#'] || o._.get;
@@ -48,7 +53,8 @@ export const compare = (a: GunEntity & Ordered, b: GunEntity & Ordered) => {
 };
 
 const compareIndexPart = (a: IndexPart, b: IndexPart) => {
-  if (a == b) { // using == on purpose
+  if (a == b) {
+    // using == on purpose
     return 0;
   }
   if (!a) {
