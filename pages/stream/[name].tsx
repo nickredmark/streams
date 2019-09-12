@@ -22,7 +22,7 @@ class StreamComponent extends Component<
     selectedMessages: string[];
     mode: Mode;
   }
-  > {
+> {
   constructor(props) {
     super(props);
     this.state = {
@@ -35,7 +35,7 @@ class StreamComponent extends Component<
 
   async componentDidMount() {
     const { streamName } = this.props;
-    getStreams().onMessages(streamName, (batch) => {
+    getStreams().onMessages(streamName, batch => {
       this.setState(state => {
         const messages = { ...state.messages };
         for (const { data, key } of batch) {
@@ -43,26 +43,26 @@ class StreamComponent extends Component<
             messages[key] = {
               ...messages[key],
               ...data,
-            }
+            };
           } else {
-            delete (messages[key])
+            delete messages[key];
           }
         }
-        return { messages }
-      })
+        return { messages };
+      });
     });
-    getStreams().onStreams((batch) => {
+    getStreams().onStreams(batch => {
       this.setState(state => {
         const streams = { ...state.streams };
         for (const { data, key } of batch) {
           streams[key] = {
             ...streams[key],
             ...data,
-          }
+          };
         }
-        return { streams }
-      })
-    })
+        return { streams };
+      });
+    });
 
     window.addEventListener('keydown', this.onKeyDown);
 
@@ -85,22 +85,34 @@ class StreamComponent extends Component<
 
   onKeyDown = (e: KeyboardEvent) => {
     switch (e.keyCode) {
-      case 77:
+      case 77: // m
         if (e.ctrlKey) {
           this.setState({
             mode: this.state.mode === 'stream' ? 'select' : 'stream',
           });
         }
         break;
+      case 67: // c
+        if (e.ctrlKey) {
+          navigator.clipboard.writeText(this.getTree().reduce((s, node) => s + getFullText(node, 0), ''));
+        }
+        break;
+      default:
+        console.log(e.keyCode);
     }
   };
 
+  getTree() {
+    const { messages } = this.state;
+    const sortedMessages = sort(Object.values(messages));
+    const tree = treeify(sortedMessages);
+    return tree;
+  }
+
   render() {
-    console.log('render')
     const { streamName } = this.props;
-    const { messages: unsortedMessages, mode, streams, selectedMessages } = this.state;
-    const messages = sort(Object.values(unsortedMessages));
-    const tree = treeify(messages);
+    const { messages, mode, streams, selectedMessages } = this.state;
+    const tree = this.getTree();
 
     return (
       <>
@@ -201,7 +213,7 @@ const Tree = ({
             selectedMessages={selectedMessages}
             selected={selectedMessages.includes(key)}
             setSelected={setSelected}
-            isFocus={router.query.focus === key}
+            focus={router.query.focus as string | undefined}
             onFocus={value => focus(value)}
             onFocusUp={() => tree[i - 1] && focus(getKey(tree[i - 1].entity))}
             onFocusDown={() => tree[i + 1] && focus(getKey(tree[i + 1].entity))}
@@ -231,8 +243,8 @@ const Tree = ({
             onOutdent={() => {
               if (node.parent && node.parent.parent) {
                 getStreams().append(node.entity, node.parent.parent.entity);
-                const parentNext = node.parent.parent.children[node.parent.index + 1]
-                getStreams().moveBetween(node.entity, node.parent.entity, parentNext && parentNext.entity)
+                const parentNext = node.parent.parent.children[node.parent.index + 1];
+                getStreams().moveBetween(node.entity, node.parent.entity, parentNext && parentNext.entity);
               }
             }}
           />
@@ -252,7 +264,7 @@ const MessageComponent = ({
   setSelected,
   onMoveDown,
   onMoveUp,
-  isFocus,
+  focus,
   onFocus,
   onFocusUp,
   onFocusDown,
@@ -268,7 +280,7 @@ const MessageComponent = ({
   setSelected: (selected: boolean) => void;
   onMoveDown: () => void;
   onMoveUp: () => void;
-  isFocus: boolean;
+  focus: string | undefined;
   onFocus: (value: string | undefined) => void;
   onFocusUp: () => void;
   onFocusDown: () => void;
@@ -292,10 +304,12 @@ const MessageComponent = ({
       }}
       onDoubleClick={e => {
         e.stopPropagation();
-        onFocus(isFocus ? undefined : getKey(node.entity));
+        if (focus !== id) {
+          onFocus(getKey(node.entity));
+        }
       }}
     >
-      {isFocus ? (
+      {focus === id ? (
         <EditMessage
           id={id}
           streamName={streamName}
@@ -309,50 +323,56 @@ const MessageComponent = ({
           onOutdent={onOutdent}
         />
       ) : (
-          <div
-            onMouseDown={e => {
-              if (mode === 'select' && e.buttons === 1) {
-                e.preventDefault();
-                e.stopPropagation();
-                setSelected(!selected);
-              }
+        <div
+          onMouseDown={e => {
+            if (mode === 'select' && e.buttons === 1) {
+              e.preventDefault();
+              e.stopPropagation();
+              setSelected(!selected);
+            }
+          }}
+          onMouseEnter={e => {
+            if (mode === 'select' && e.buttons === 1) {
+              setSelected(!selected);
+            }
+          }}
+        >
+          <a id={id} />
+          <MessageContent message={node.entity} streamName={streamName} />
+          <a
+            className="message-permalink"
+            style={{
+              marginLeft: '0.25rem',
+              color: 'lightgray',
+              textDecoration: 'none',
+              fontSize: '0.8rem',
             }}
-            onMouseEnter={e => {
-              if (mode === 'select' && e.buttons === 1) {
-                setSelected(!selected);
-              }
-            }}
+            href={`/stream/${streamName}#${id}`}
           >
-            <a id={id} />
-            <MessageContent message={node.entity} streamName={streamName} />
-            <a
-              className="message-permalink"
-              style={{
-                marginLeft: '0.25rem',
-                color: 'lightgray',
-                textDecoration: 'none',
-                fontSize: '0.8rem',
-              }}
-              href={`/stream/${streamName}#${id}`}
-            >
-              #
+            #
           </a>
-          </div>
-        )}
+        </div>
+      )}
       {node.children.length > 0 && (
         <div
           style={{
             marginLeft: '1rem',
           }}
         >
-          <Tree streamName={streamName} mode={mode} selectedMessages={selectedMessages} setSelected={setSelected} tree={node.children} />
+          <Tree
+            streamName={streamName}
+            mode={mode}
+            selectedMessages={selectedMessages}
+            setSelected={setSelected}
+            tree={node.children}
+          />
         </div>
       )}
     </div>
   );
 };
 
-const MessageContent = ({ message, streamName }: { streamName: string, message: MessageEntity }) => {
+const MessageContent = ({ message, streamName }: { streamName: string; message: MessageEntity }) => {
   if (/^data:image\//.exec(message.text)) {
     return <img src={message.text} />;
   }
@@ -370,7 +390,7 @@ const MessageContent = ({ message, streamName }: { streamName: string, message: 
     );
   }
   if (message.text === 'CHART') {
-    return <Chart streamName={streamName} />
+    return <Chart streamName={streamName} />;
   }
 
   return <span>{message.text}</span>;
@@ -389,7 +409,7 @@ const EditMessage = ({
   onOutdent,
 }: {
   id: string;
-  streamName: string,
+  streamName: string;
   node: Node<MessageEntity>;
   onMoveDown: () => void;
   onMoveUp: () => void;
@@ -399,13 +419,13 @@ const EditMessage = ({
   onIndent: () => void;
   onOutdent: () => void;
 }) => {
-  const [dirty, setDirty] = useState(false)
+  const [dirty, setDirty] = useState(false);
   const text = useRef<HTMLInputElement>(null);
   useEffect(() => {
     text.current.focus();
     return () => {
       save();
-    }
+    };
   }, []);
   const router = useRouter();
   const save = () => {
@@ -413,7 +433,7 @@ const EditMessage = ({
       getStreams().updateMessage(node.entity, 'text', text.current.value);
       setDirty(false);
     }
-  }
+  };
   return (
     <form
       onSubmit={e => {
@@ -447,21 +467,32 @@ const EditMessage = ({
               e.stopPropagation();
               save();
               if (e.ctrlKey) {
-                const key = await getStreams().createMessage(streamName, {
-                  text: ''
-                }, node.entity, node.children[node.children.length - 1] && node.children[node.children.length - 1].entity)
+                const key = await getStreams().createMessage(
+                  streamName,
+                  {
+                    text: '',
+                  },
+                  node.entity,
+                  node.children[node.children.length - 1] && node.children[node.children.length - 1].entity,
+                );
                 onFocus(key);
               } else {
-                const key = await getStreams().createMessage(streamName, {
-                  text: ''
-                }, node.parent.entity, node.entity, node.parent.children[node.index + 1] && node.parent.children[node.index + 1].entity)
+                const key = await getStreams().createMessage(
+                  streamName,
+                  {
+                    text: '',
+                  },
+                  node.parent.entity,
+                  node.entity,
+                  node.parent.children[node.index + 1] && node.parent.children[node.index + 1].entity,
+                );
                 onFocus(key);
               }
               break;
             case 8: // del
               e.stopPropagation();
               if (text.current.value === '' || e.ctrlKey) {
-                getStreams().deleteMessages([node.entity], streamName)
+                getStreams().deleteMessages([node.entity], streamName);
               }
               break;
             case 27: // esc
@@ -506,16 +537,26 @@ const EditMessage = ({
               console.log(e.keyCode);
           }
         }}
+        onCopy={e => {
+          if (text.current.selectionEnd === text.current.selectionStart) {
+            e.stopPropagation();
+            navigator.clipboard.writeText(getFullText(node, 0));
+          }
+        }}
         onPaste={async e => {
-          const text = e.clipboardData.getData("Text");
-          const lines = text ? text.trim().split("\n") : [];
+          const text = e.clipboardData.getData('Text');
+          const lines = text ? text.trim().split('\n') : [];
           if (lines.length > 1 && node.children.length === 0) {
             e.preventDefault();
             e.stopPropagation();
             for (const line of lines) {
-              await getStreams().createMessage(streamName, {
-                text: line,
-              }, node.entity);
+              await getStreams().createMessage(
+                streamName,
+                {
+                  text: line,
+                },
+                node.entity,
+              );
             }
           }
         }}
@@ -559,9 +600,7 @@ const MoveMessages = ({ messages, setSelectedMessages, selectedMessages, streamN
 
 export default () => {
   const router = useRouter();
-  return (
-    <Layout>{router.query.name && <StreamComponent streamName={router.query.name as string} />}</Layout>
-  );
+  return <Layout>{router.query.name && <StreamComponent streamName={router.query.name as string} />}</Layout>;
 };
 
 const clear = o => (Object.keys(o).forEach(key => o[key] === undefined && delete o[key]), o);
@@ -572,4 +611,12 @@ const qstringify = o => {
     return `?${s}`;
   }
   return '';
+};
+
+const getFullText = (current: Node<MessageEntity>, indentation: number) => {
+  let fullText = `${'  '.repeat(indentation)}${current.entity.text}\n`;
+  for (const node of current.children) {
+    fullText += getFullText(node, indentation + 1);
+  }
+  return fullText;
 };
