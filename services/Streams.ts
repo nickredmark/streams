@@ -51,12 +51,12 @@ export class StreamsService {
   }
 
   async createStream(name: string) {
-    this.gun
+    return await new Promise(res => this.gun
       .get(this.namespace)
       .get(name)
       .put({
         name,
-      });
+      }, res));
   }
 
   async createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
