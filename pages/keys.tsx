@@ -51,7 +51,7 @@ class Keys extends Component<{}, { streams: { [key: string]: StreamEntity } }> {
                                     <a style={{
                                         textDecoration: "none",
                                     }}
-                                    >{stream.name} {getKey(stream)}</a>
+                                    >{stream.name} {key} {getKey(stream)}</a>
                                 </Link>
                                 <span style={{
                                     fontSize: "80%",
