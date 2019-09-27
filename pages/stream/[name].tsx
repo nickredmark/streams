@@ -40,7 +40,7 @@ type State = {
 class StreamComponent extends Component<
   { name: string; all: boolean; highlights: boolean; goTo: (query: any) => void },
   State
-> {
+  > {
   constructor(props) {
     super(props);
     this.state = {
@@ -65,14 +65,14 @@ class StreamComponent extends Component<
         const filteredBatch = all
           ? batch
           : batch.filter(
-              v =>
-                v.data &&
-                v.data &&
-                v.data._ &&
-                v.data._['>'] &&
-                v.data._['>'].text &&
-                moment(v.data._['>'].text) > moment().subtract(2, 'days'),
-            );
+            v =>
+              v.data &&
+              v.data &&
+              v.data._ &&
+              v.data._['>'] &&
+              v.data._['>'].text &&
+              moment(v.data._['>'].text) > moment().subtract(2, 'days'),
+          );
         if (filteredBatch.length) {
           newState.messages = addMessages(filteredBatch, { ...messages });
         }
@@ -180,6 +180,7 @@ class StreamComponent extends Component<
               load full stream
             </ShyButton>
           )}
+          {tree.length === 0 && streams[streamName] && streams[streamName].lastMessage && <div>Loading...</div>}
           <Tree
             streamName={streamName}
             mode={mode}
@@ -385,52 +386,52 @@ const MessageComponent = ({
           onOutdent={onOutdent}
         />
       ) : (
-        <div
-          onMouseDown={e => {
-            if (mode === 'select' && e.buttons === 1) {
-              e.preventDefault();
-              e.stopPropagation();
-              setSelected(!selected);
-            }
-          }}
-          onMouseEnter={e => {
-            if (mode === 'select' && e.buttons === 1) {
-              setSelected(!selected);
-            }
-          }}
-        >
-          <a id={id} />
-          <MessageContent message={node.entity} streamName={streamName} />
-          <a
-            href="#"
-            className="message-permalink"
-            style={{
-              marginLeft: '0.25rem',
-              color: 'lightgray',
-              textDecoration: 'none',
-              fontSize: '0.8rem',
+          <div
+            onMouseDown={e => {
+              if (mode === 'select' && e.buttons === 1) {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelected(!selected);
+              }
             }}
-            onClick={e => {
-              e.preventDefault();
-              getStreams().updateMessage(node.entity, 'highlighted', !node.entity.highlighted);
+            onMouseEnter={e => {
+              if (mode === 'select' && e.buttons === 1) {
+                setSelected(!selected);
+              }
             }}
           >
-            !
+            <a id={id} />
+            <MessageContent message={node.entity} streamName={streamName} />
+            <a
+              href="#"
+              className="message-permalink"
+              style={{
+                marginLeft: '0.25rem',
+                color: 'lightgray',
+                textDecoration: 'none',
+                fontSize: '0.8rem',
+              }}
+              onClick={e => {
+                e.preventDefault();
+                getStreams().updateMessage(node.entity, 'highlighted', !node.entity.highlighted);
+              }}
+            >
+              !
           </a>
-          <a
-            className="message-permalink"
-            style={{
-              marginLeft: '0.25rem',
-              color: 'lightgray',
-              textDecoration: 'none',
-              fontSize: '0.8rem',
-            }}
-            href={`/stream/${streamName}#${id}`}
-          >
-            #
+            <a
+              className="message-permalink"
+              style={{
+                marginLeft: '0.25rem',
+                color: 'lightgray',
+                textDecoration: 'none',
+                fontSize: '0.8rem',
+              }}
+              href={`/stream/${streamName}#${id}`}
+            >
+              #
           </a>
-        </div>
-      )}
+          </div>
+        )}
       {node.children.length > 0 && (
         <div
           style={{

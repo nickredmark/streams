@@ -9,7 +9,7 @@ export const getStreams = () => {
       process.env.NAMESPACE,
       process.env.SERVERS.split(',').filter(Boolean),
       process.env.STREAMS &&
-        process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
+      process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
     );
   }
   return streams;
@@ -17,6 +17,7 @@ export const getStreams = () => {
 
 export type Stream = {
   name: string;
+  lastMessage: any;
 };
 
 export type StreamEntity = Stream & GunEntity;
