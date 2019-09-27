@@ -25,7 +25,9 @@ export type Ordered = {
   index: string;
 };
 
-export const update = (gun: Gun, o: GunEntity, key: string, value: string) => {
+export type Primitive = string | boolean | number;
+
+export const update = (gun: Gun, o: GunEntity, key: string, value: Primitive) => {
   gun.get(getKey(o)).put({ [key]: value });
 };
 
@@ -48,7 +50,8 @@ export const compare = (a: GunEntity & Ordered, b: GunEntity & Ordered) => {
 };
 
 const compareIndexPart = (a: IndexPart, b: IndexPart) => {
-  if (a == b) { // using == on purpose
+  if (a == b) {
+    // using == on purpose
     return 0;
   }
   if (!a) {
