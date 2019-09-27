@@ -1,4 +1,4 @@
-import { moveBetween, update, GunEntity, Ordered, getKey, getIndexBetween } from '../utils/ordered-list';
+import { moveBetween, update, GunEntity, Ordered, getKey, getIndexBetween, Primitive } from '../utils/ordered-list';
 import moment from 'moment';
 
 let streams: StreamsService;
@@ -23,6 +23,7 @@ export type StreamEntity = Stream & GunEntity;
 
 export type Message = {
   text: string;
+  highlighted?: boolean;
 };
 
 export type MessageEntity = Message & GunEntity & Ordered;
@@ -161,7 +162,7 @@ export class StreamsService {
     moveBetween(this.gun, message, prev, next);
   }
 
-  updateMessage(message: MessageEntity, key: string, value: string) {
+  updateMessage(message: MessageEntity, key: string, value: Primitive) {
     update(this.gun, message, key, value);
   }
 

@@ -4,8 +4,8 @@ export const ShyButton = props => (
     href="#"
     style={{
       display: 'block',
-      margin: '0.5rem',
       textDecoration: 'none',
+      marginBottom: '1rem',
     }}
     onClick={e => {
       e.preventDefault();

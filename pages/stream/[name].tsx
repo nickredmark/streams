@@ -29,16 +29,17 @@ const addMessages = (batch: { key: string; data: Message }[], messages: Dictiona
   return messages;
 };
 
+type State = {
+  messages: Dictionary<MessageEntity>;
+  streams: Dictionary<Stream>;
+  selectedMessages: string[];
+  mode: Mode;
+  oldMessagesAvailable: boolean;
+};
+
 class StreamComponent extends Component<
-  { streamName: string },
-  {
-    messages: Dictionary<MessageEntity>;
-    streams: Dictionary<Stream>;
-    selectedMessages: string[];
-    mode: Mode;
-    oldMessagesAvailable: boolean;
-    all: boolean;
-  }
+  { name: string; all: boolean; highlights: boolean; goTo: (query: any) => void },
+  State
 > {
   constructor(props) {
     super(props);
@@ -48,18 +49,19 @@ class StreamComponent extends Component<
       mode: 'stream',
       selectedMessages: [],
       oldMessagesAvailable: false,
-      all: false,
     };
   }
 
   private allMessages: Dictionary<MessageEntity> = {};
 
   async componentDidMount() {
-    const { streamName } = this.props;
+    const { name: streamName, all } = this.props;
     getStreams().onMessages(streamName, batch => {
       this.allMessages = addMessages(batch, this.allMessages);
 
-      this.setState(({ messages, all, oldMessagesAvailable }) => {
+      this.setState(({ messages, oldMessagesAvailable }) => {
+        const newState: any = {};
+
         const filteredBatch = all
           ? batch
           : batch.filter(
@@ -71,10 +73,13 @@ class StreamComponent extends Component<
                 v.data._['>'].text &&
                 moment(v.data._['>'].text) > moment().subtract(2, 'days'),
             );
-        return {
-          messages: addMessages(filteredBatch, { ...messages }),
-          oldMessagesAvailable: oldMessagesAvailable || filteredBatch.length !== batch.length,
-        };
+        if (filteredBatch.length) {
+          newState.messages = addMessages(filteredBatch, { ...messages });
+        }
+        if (!oldMessagesAvailable && filteredBatch.length !== batch.length) {
+          newState.oldMessagesAvailable = true;
+        }
+        return newState;
       });
     });
     getStreams().onStreams(batch => {
@@ -129,15 +134,16 @@ class StreamComponent extends Component<
   };
 
   getTree() {
+    const { highlights } = this.props;
     const { messages } = this.state;
-    const sortedMessages = sort(Object.values(messages));
+    const sortedMessages = sort(Object.values(messages).filter(m => !highlights || m.highlighted));
     const tree = treeify(sortedMessages);
     return tree;
   }
 
   render() {
-    const { streamName } = this.props;
-    const { messages, mode, streams, selectedMessages, oldMessagesAvailable, all } = this.state;
+    const { name: streamName, all, highlights, goTo } = this.props;
+    const { messages, mode, streams, selectedMessages, oldMessagesAvailable } = this.state;
     const tree = this.getTree();
 
     return (
@@ -153,18 +159,6 @@ class StreamComponent extends Component<
             }
           `}
         </style>
-        {!all && oldMessagesAvailable && (
-          <ShyButton
-            onClick={() =>
-              this.setState({
-                all: true,
-                messages: { ...this.allMessages },
-              })
-            }
-          >
-            show full stream
-          </ShyButton>
-        )}
         <div
           style={{
             flexGrow: 1,
@@ -174,6 +168,18 @@ class StreamComponent extends Component<
             padding: '0.5rem',
           }}
         >
+          {!all && oldMessagesAvailable && (
+            <ShyButton
+              onClick={() => {
+                this.setState({
+                  messages: { ...this.allMessages },
+                });
+                goTo({ all: true });
+              }}
+            >
+              load full stream
+            </ShyButton>
+          )}
           <Tree
             streamName={streamName}
             mode={mode}
@@ -201,6 +207,24 @@ class StreamComponent extends Component<
             }
           />
         )}
+        <div
+          style={{
+            textAlign: 'right',
+          }}
+        >
+          <a
+            href="#"
+            style={{
+              display: 'inline-block',
+              padding: '1rem',
+              textDecoration: 'none',
+              outline: 'none',
+            }}
+            onClick={e => (e.preventDefault(), goTo({ highlights: highlights ? undefined : true }))}
+          >
+            !
+          </a>
+        </div>
         {!process.env.READONLY && <NewMessage streamName={streamName} />}
       </>
     );
@@ -378,6 +402,22 @@ const MessageComponent = ({
           <a id={id} />
           <MessageContent message={node.entity} streamName={streamName} />
           <a
+            href="#"
+            className="message-permalink"
+            style={{
+              marginLeft: '0.25rem',
+              color: 'lightgray',
+              textDecoration: 'none',
+              fontSize: '0.8rem',
+            }}
+            onClick={e => {
+              e.preventDefault();
+              getStreams().updateMessage(node.entity, 'highlighted', !node.entity.highlighted);
+            }}
+          >
+            !
+          </a>
+          <a
             className="message-permalink"
             style={{
               marginLeft: '0.25rem',
@@ -431,7 +471,17 @@ const MessageContent = ({ message, streamName }: { streamName: string; message: 
     return <Chart streamName={streamName} />;
   }
 
-  return <span>{message.text}</span>;
+  return (
+    <span
+      style={{
+        ...(message.highlighted && {
+          fontWeight: 'bold',
+        }),
+      }}
+    >
+      {message.text}
+    </span>
+  );
 };
 
 const EditMessage = ({
@@ -638,7 +688,13 @@ const MoveMessages = ({ messages, setSelectedMessages, selectedMessages, streamN
 
 export default () => {
   const router = useRouter();
-  return <Layout>{router.query.name && <StreamComponent streamName={router.query.name as string} />}</Layout>;
+  const goTo = (newQuery: any) => {
+    router.replace(
+      `${router.pathname}${qstringify({ ...router.query, ...newQuery })}`,
+      `${location.pathname}${qstringify({ ...router.query, ...newQuery, name: undefined })}`,
+    );
+  };
+  return <Layout>{router.query.name && <StreamComponent {...(router.query as any)} goTo={goTo} />}</Layout>;
 };
 
 const clear = o => (Object.keys(o).forEach(key => o[key] === undefined && delete o[key]), o);
