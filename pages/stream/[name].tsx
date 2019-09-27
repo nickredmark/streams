@@ -1,26 +1,43 @@
 import Layout from '../../components/Layout';
 import { useRef, Component, useEffect, useState } from 'react';
 import { getStreams, Stream, MessageEntity, Message } from '../../services/Streams';
-import { useRouter, NextRouter } from 'next/router';
+import { useRouter } from 'next/router';
 import { streamComparator } from '../../utils/time';
-import { pick } from 'lodash';
 import { NewMessage } from '../../components/NewMessage';
 import dragDrop from 'drag-drop';
 import { stringify } from 'querystring';
 import { Chart } from '../../components/Chart';
 import { sort, getKey } from '../../utils/ordered-list';
 import { treeify, Node } from '../../utils/trees';
-import { select } from 'd3';
+import { Dictionary } from 'lodash';
+import moment from 'moment';
+import { ShyButton } from '../../components/ShyButton';
 
 type Mode = 'stream' | 'select';
+
+const addMessages = (batch: { key: string; data: Message }[], messages: Dictionary<MessageEntity>) => {
+  for (const { data, key } of batch) {
+    if (data) {
+      messages[key] = {
+        ...messages[key],
+        ...data,
+      };
+    } else {
+      delete messages[key];
+    }
+  }
+  return messages;
+};
 
 class StreamComponent extends Component<
   { streamName: string },
   {
-    messages: { [key: string]: MessageEntity };
-    streams: { [key: string]: Stream };
+    messages: Dictionary<MessageEntity>;
+    streams: Dictionary<Stream>;
     selectedMessages: string[];
     mode: Mode;
+    oldMessagesAvailable: boolean;
+    all: boolean;
   }
 > {
   constructor(props) {
@@ -30,25 +47,34 @@ class StreamComponent extends Component<
       streams: {},
       mode: 'stream',
       selectedMessages: [],
+      oldMessagesAvailable: false,
+      all: false,
     };
   }
+
+  private allMessages: Dictionary<MessageEntity> = {};
 
   async componentDidMount() {
     const { streamName } = this.props;
     getStreams().onMessages(streamName, batch => {
-      this.setState(state => {
-        const messages = { ...state.messages };
-        for (const { data, key } of batch) {
-          if (data) {
-            messages[key] = {
-              ...messages[key],
-              ...data,
-            };
-          } else {
-            delete messages[key];
-          }
-        }
-        return { messages };
+      this.allMessages = addMessages(batch, this.allMessages);
+
+      this.setState(({ messages, all, oldMessagesAvailable }) => {
+        const filteredBatch = all
+          ? batch
+          : batch.filter(
+              v =>
+                v.data &&
+                v.data &&
+                v.data._ &&
+                v.data._['>'] &&
+                v.data._['>'].text &&
+                moment(v.data._['>'].text) > moment().subtract(2, 'days'),
+            );
+        return {
+          messages: addMessages(filteredBatch, { ...messages }),
+          oldMessagesAvailable: oldMessagesAvailable || filteredBatch.length !== batch.length,
+        };
       });
     });
     getStreams().onStreams(batch => {
@@ -111,7 +137,7 @@ class StreamComponent extends Component<
 
   render() {
     const { streamName } = this.props;
-    const { messages, mode, streams, selectedMessages } = this.state;
+    const { messages, mode, streams, selectedMessages, oldMessagesAvailable, all } = this.state;
     const tree = this.getTree();
 
     return (
@@ -127,6 +153,18 @@ class StreamComponent extends Component<
             }
           `}
         </style>
+        {!all && oldMessagesAvailable && (
+          <ShyButton
+            onClick={() =>
+              this.setState({
+                all: true,
+                messages: { ...this.allMessages },
+              })
+            }
+          >
+            show full stream
+          </ShyButton>
+        )}
         <div
           style={{
             flexGrow: 1,

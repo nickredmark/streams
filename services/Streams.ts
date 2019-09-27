@@ -9,7 +9,7 @@ export const getStreams = () => {
       process.env.NAMESPACE,
       process.env.SERVERS.split(',').filter(Boolean),
       process.env.STREAMS &&
-      process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
+        process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
     );
   }
   return streams;
@@ -36,7 +36,7 @@ export class StreamsService {
     this.Gun = (window as any).Gun;
     this.gun = this.Gun({
       localStorage: false,
-      peers: servers
+      peers: servers,
     });
     this.user = this.gun.user();
   }
@@ -74,7 +74,7 @@ export class StreamsService {
     }
     if (!ref) {
       console.log(stream, message);
-      throw new Error('Failed 3 times to create message.')
+      throw new Error('Failed 3 times to create message.');
     }
     if (parent) {
       this.append(ref, parent);
@@ -101,19 +101,19 @@ export class StreamsService {
     }
   }
 
-  onStreams(listener: (data: { data: Stream, key: string }[]) => void) {
-    batch((cb) => this.onStream(cb), listener);
+  onStreams(listener: (data: { data: Stream; key: string }[]) => void) {
+    batch(cb => this.onStream(cb), listener);
   }
 
-  onMessage(streamName: string, listener: (data: Message, key: string) => void) {
+  onMessage(streamName: string, listener: (data: MessageEntity, key: string) => void) {
     this.getStream(streamName)
       .get('messages')
       .map(messageMap)
       .on(listener);
   }
 
-  onMessages(streamName: string, listener: (data: { data: Message, key: string }[]) => void) {
-    batch((cb) => this.onMessage(streamName, cb), listener)
+  onMessages(streamName: string, listener: (data: { data: MessageEntity; key: string }[]) => void) {
+    batch(cb => this.onMessage(streamName, cb), listener);
   }
 
   onAnyMessage(listener: (data: Message, key) => void) {
@@ -170,7 +170,7 @@ export class StreamsService {
   }
 }
 
-export const messageMap = m => m && typeof m === 'object' && m._ ? m : undefined;
+export const messageMap = m => (m && typeof m === 'object' && m._ ? m : undefined);
 
 const INTERVAL = 200;
 
@@ -189,11 +189,11 @@ const batch = (fn, listener) => {
       return;
     }
 
-    queue.push({ data, key })
+    queue.push({ data, key });
     setTimeout(() => {
       listener(queue);
       lastMessage = undefined;
       queue = [];
     }, INTERVAL);
-  })
-}
+  });
+};
