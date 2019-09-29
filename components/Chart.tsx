@@ -3,11 +3,11 @@ import { getStreams, Message } from '../services/Streams';
 import { Mermaid } from './Mermaid';
 
 export class Chart extends Component<
-  { streamName: string },
+  { streamId: string },
   {
     messages: { [key: string]: Message };
   }
-> {
+  > {
   constructor(props) {
     super(props);
     this.state = {
@@ -16,7 +16,7 @@ export class Chart extends Component<
   }
 
   async componentDidMount() {
-    getStreams().onMessages(this.props.streamName, batch => {
+    getStreams().onMessages(this.props.streamId, batch => {
       this.setState(state => {
         const messages = { ...state.messages };
         for (const { data, key } of batch) {
@@ -53,7 +53,7 @@ export class Chart extends Component<
     return lines.length > 0 ? (
       <Mermaid chart={`graph LR;\n${lines.map(line => `${line};`).join('\n')}`} />
     ) : (
-      <em>Chart is empty, try adding relationship messages like "A --> B".</em>
-    );
+        <em>Chart is empty, try adding relationship messages like "A --> B".</em>
+      );
   }
 }

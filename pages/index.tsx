@@ -1,10 +1,9 @@
-import Link from "next/link";
 import Layout from "../components/Layout";
 
 import { useRef, Component } from "react";
 import { useRouter } from "next/router";
 import { getStreams, Stream } from "../services/Streams";
-import { formatTime, streamComparator, getStreamTimestamp } from "../utils/time";
+import { getKey } from "../utils/ordered-list";
 
 class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
   constructor(props) {
@@ -15,76 +14,37 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
   }
 
   async componentDidMount() {
-    getStreams().onStreams((batch) => {
-      this.setState(state => {
-        const streams = { ...state.streams };
-        for (const { data, key } of batch) {
-          streams[key] = {
-            ...streams[key],
-            ...data,
-          }
-        }
-        return { streams }
-      })
-    })
   }
 
   render() {
-    const { streams } = this.state;
     return (
       <Layout>
         <div style={{
-          flexGrow: 1,
-          flexShrink: 1,
-          minHeight: 0,
-          overflowY: "auto"
+          flexGrow: 1
         }}>
-          <ul
-            style={{
-              margin: 0
-            }}
-          >
-            {Object.keys(streams).sort(streamComparator(streams)).map(key => {
-              const stream = streams[key]
-              // console.log(`${stream.name}:${(stream as any)._['#']}`)
-              return <li key={key}>
-                <Link href="/stream/[name]" as={`/stream/${stream.name}`}>
-                  <a style={{
-                    textDecoration: "none",
-                  }}
-                  >{stream.name}</a>
-                </Link>
-                <span style={{
-                  fontSize: "80%",
-                  color: "lightgray",
-                  marginLeft: "0.75rem"
-                }}>{formatTime(getStreamTimestamp(stream))}</span>
-              </li>
-            })}
-          </ul>
+
+          <h1>Welcome to Streams!</h1>
         </div>
-        {!process.env.READONLY &&
-          <NewStream />
-        }
+        <NewSpace />
       </Layout>
     );
   }
 }
 
-const NewStream = () => {
+const NewSpace = () => {
   const name = useRef(null);
   const router = useRouter();
   return (
     <form
       onSubmit={async e => {
         e.preventDefault();
-        const stream = name.current.value
+        const spaceName = name.current.value
         name.current.value = ''
-        await (await getStreams()).createStream(stream)
-        router.push(`/stream/${stream}`);
+        const space = await getStreams().createSpace(spaceName)
+        router.push(`/space/${getKey(space)}`);
       }}
     >
-      <input ref={name} placeholder="new stream" style={{
+      <input ref={name} placeholder="new space" style={{
         width: "100%",
         padding: "1rem",
         borderRadius: "none",

@@ -67,15 +67,6 @@ export default class extends Component<{}, { initialized: boolean, logged: boole
         }
       `}
       </style>
-      <div>
-        <Link href="/">
-          <a style={{
-            display: "block",
-            margin: '0.5rem',
-            textDecoration: "none",
-          }}>home</a>
-        </Link>
-      </div>
       {(() => {
         if (!this.state.initialized) {
           return <div>Initializing...</div>

@@ -6,14 +6,17 @@ let streams: StreamsService;
 export const getStreams = () => {
   if (!streams) {
     streams = new StreamsService(
-      process.env.NAMESPACE,
       process.env.SERVERS.split(',').filter(Boolean),
-      process.env.STREAMS &&
-      process.env.STREAMS.split(',').reduce((streams, s) => ((streams[s.split(':')[0]] = s.split(':')[1]), streams), {}),
     );
   }
   return streams;
 };
+
+export type Space = {
+  name: string
+}
+
+export type SpaceEntity = Space & GunEntity;
 
 export type Stream = {
   name: string;
@@ -34,7 +37,7 @@ export class StreamsService {
   public gun;
   public user;
 
-  constructor(private namespace: string, servers: string[], private streams?: { [key: string]: string }) {
+  constructor(servers: string[]) {
     this.Gun = (window as any).Gun;
     this.gun = this.Gun({
       localStorage: false,
@@ -52,20 +55,34 @@ export class StreamsService {
         */
   }
 
-  async createStream(name: string) {
-    return await new Promise(res => this.gun
-      .get(this.namespace)
-      .get(name)
-      .put({
-        name,
-      }, res));
+  async createSpace(name: string): Promise<SpaceEntity> {
+    return await new Promise(res => { const ref = this.gun.get(this.gun.opt()._.opt.uuid()).put({ name }, () => res(ref)) });
+  }
+
+  async createStream(space: string, name: string): Promise<StreamEntity> {
+    return await new Promise(res => {
+      const ref = this.gun
+        .get(space)
+        .get('streams')
+        .set({
+          name
+        }, () => res(ref))
+    });
+  }
+
+  async addStream(space: string, streamId: string) {
+    return await new Promise(res => {
+      const ref = this.gun.get(streamId);
+      this.gun.get(space).get('streams').get(streamId).put(ref);
+      console.log(ref);
+      res();
+    })
   }
 
   async createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
     let ref;
     for (let i = 0; i < 3; i++) {
       ref = this.gun
-        .get(this.namespace)
         .get(stream)
         .get('messages')
         .set(message);
@@ -85,26 +102,30 @@ export class StreamsService {
       this.moveBetween(ref, prev, next);
     }
     this.gun
-      .get(this.namespace)
       .get(stream)
       .get('lastMessage')
       .put(ref);
     return getKey(ref);
   }
 
-  onStream(listener: (data: Stream, key: string) => void) {
-    if (this.streams) {
-      Object.values(this.streams).map(key => this.gun.get(key).on(listener));
-    } else {
-      this.gun
-        .get(this.namespace)
-        .map()
-        .on(listener);
-    }
+  onSpace(id: string, listener: (data: SpaceEntity, id: string) => void) {
+    this.gun.get(id).on(listener);
   }
 
-  onStreams(listener: (data: { data: Stream; key: string }[]) => void) {
-    batch(cb => this.onStream(cb), listener);
+  onStream(id: string, listener: (data: StreamEntity, id: string) => void) {
+    this.gun.get(id).on(listener);
+  }
+
+  onSpaceStream(space: string, listener: (data: StreamEntity, key: string) => void) {
+    this.gun
+      .get(space)
+      .get('streams')
+      .map()
+      .on(listener);
+  }
+
+  onStreams(space: string, listener: (data: { data: StreamEntity; key: string }[]) => void) {
+    batch(cb => this.onSpaceStream(space, cb), listener);
   }
 
   onMessage(streamName: string, listener: (data: MessageEntity, key: string) => void) {
@@ -118,9 +139,9 @@ export class StreamsService {
     batch(cb => this.onMessage(streamName, cb), listener);
   }
 
-  onAnyMessage(listener: (data: Message, key) => void) {
+  onAnyMessage(space: string, listener: (data: Message, key) => void) {
     this.gun
-      .get(this.namespace)
+      .get(space)
       .map()
       .get('messages')
       .map(messageMap)
@@ -129,7 +150,6 @@ export class StreamsService {
 
   setStreamName(key: string, name: string) {
     this.gun
-      .get(this.namespace)
       .get(key)
       .put({
         name,
@@ -151,12 +171,8 @@ export class StreamsService {
     }
   }
 
-  private getStream(name: string) {
-    if (this.streams) {
-      return this.gun.get(this.streams[name]);
-    } else {
-      return this.gun.get(this.namespace).get(name);
-    }
+  private getStream(key: string) {
+    return this.gun.get(key);
   }
 
   moveBetween(message: MessageEntity, prev: MessageEntity, next: MessageEntity) {
