@@ -48,7 +48,7 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
               const stream = streams[key]
               // console.log(`${stream.name}:${(stream as any)._['#']}`)
               return <li key={key}>
-                <Link href={`/stream/${stream.name}`}>
+                <Link href="/stream/[name]" as={`/stream/${stream.name}`}>
                   <a style={{
                     textDecoration: "none",
                   }}

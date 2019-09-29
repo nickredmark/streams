@@ -1,6 +1,6 @@
 import Layout from '../../components/Layout';
 import { useRef, Component, useEffect, useState } from 'react';
-import { getStreams, Stream, MessageEntity, Message } from '../../services/Streams';
+import { getStreams, MessageEntity, Message, StreamEntity } from '../../services/Streams';
 import { useRouter } from 'next/router';
 import { streamComparator } from '../../utils/time';
 import { NewMessage } from '../../components/NewMessage';
@@ -31,7 +31,7 @@ const addMessages = (batch: { key: string; data: Message }[], messages: Dictiona
 
 type State = {
   messages: Dictionary<MessageEntity>;
-  streams: Dictionary<Stream>;
+  streams: Dictionary<StreamEntity>;
   selectedMessages: string[];
   mode: Mode;
   oldMessagesAvailable: boolean;
@@ -180,7 +180,7 @@ class StreamComponent extends Component<
               load full stream
             </ShyButton>
           )}
-          {tree.length === 0 && streams[streamName] && streams[streamName].lastMessage && <div>Loading...</div>}
+          {tree.length === 0 && streams[streamName] && streams[streamName]._['>'].lastMessage && moment(streams[streamName]._['>'].lastMessage) > moment().subtract(2, 'days') && <div>Loading...</div>}
           <Tree
             streamName={streamName}
             mode={mode}
@@ -454,6 +454,9 @@ const MessageComponent = ({
 const MessageContent = ({ message, streamName }: { streamName: string; message: MessageEntity }) => {
   if (/^data:image\//.exec(message.text)) {
     return <img src={message.text} />;
+  }
+  if (/^data:/.exec(message.text)) {
+    return <a href={message.text} target="_blank">[unknown attachment]</a>
   }
   if (/^(https?:\/\/|www)/.exec(message.text)) {
     return (
