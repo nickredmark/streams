@@ -28,7 +28,7 @@ Create a `now.json` file:
 {
     "build": {
         "env": {
-            "NAMESPACE": "<yournamespace>"
+            "SERVERS": "https://gunjs.herokuapp.com/gun"
         }
     }
 }
