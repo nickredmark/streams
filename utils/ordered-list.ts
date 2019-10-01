@@ -28,7 +28,7 @@ export type Ordered = {
 export type Primitive = string | boolean | number;
 
 export const update = (gun: Gun, o: GunEntity, key: string, value: Primitive) => {
-  gun.get(getKey(o)).put({ [key]: value });
+  gun.get(getKey(o)).get(key).put(value);
 };
 
 export const getKey = (o: GunEntity) => o._['#'] || o._.get;
