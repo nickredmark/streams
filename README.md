@@ -10,8 +10,6 @@ Create a `.env` file:
 SERVERS=https://gunjs.herokuapp.com/gun
 ```
 
-Pick a namespace that nobody is likely to use (a uuid?)
-
 ```
 npm i
 ```
