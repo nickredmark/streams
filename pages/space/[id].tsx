@@ -1,12 +1,11 @@
-import Link from "next/link";
-import Layout from "../../components/Layout";
-
 import { useRef, Component } from "react";
 import { useRouter } from "next/router";
 import { getStreams, SpaceEntity, StreamEntity } from "../../services/Streams";
 import { formatTime, streamComparator, getStreamTimestamp } from "../../utils/time";
 import { goTo } from "../../utils/router";
 import { getKey } from "../../utils/ordered-list";
+import { StreamsProvider } from "../../components/StreamsProvider";
+import { Layout } from "../../components/Layout";
 
 type Props = {
     id: string;
@@ -45,7 +44,7 @@ class Space extends Component<Props, State> {
         const { id } = this.props;
         const { streams, space } = this.state;
         return (
-            <>
+            <Layout title={space && space.name || 'Space'}>
                 <h1 style={{ margin: '0.5rem', fontSize: '2rem' }}>{space && space.name}</h1>
 
                 <div style={{
@@ -76,7 +75,7 @@ class Space extends Component<Props, State> {
                     </ul>
                 </div>
                 <NewStream spaceId={id} />
-            </>
+            </Layout>
         );
     }
 }
@@ -112,5 +111,5 @@ const NewStream = ({ spaceId }) => {
 
 export default () => {
     const router = useRouter();
-    return <Layout>{router.query.id && <Space {...(router.query as any)} goTo={goTo(router)} />}</Layout>
+    return <StreamsProvider>{router.query.id && <Space {...(router.query as any)} goTo={goTo(router)} />}</StreamsProvider>
 }

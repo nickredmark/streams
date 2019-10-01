@@ -1,4 +1,4 @@
-import Layout from '../../components/Layout';
+import { Layout } from '../../components/Layout';
 import { useRef, Component, useEffect, useState } from 'react';
 import { getStreams, MessageEntity, Message, StreamEntity } from '../../services/Streams';
 import { useRouter } from 'next/router';
@@ -11,6 +11,7 @@ import { Dictionary } from 'lodash';
 import moment from 'moment';
 import { ShyButton } from '../../components/ShyButton';
 import { goTo, qstringify } from '../../utils/router';
+import { StreamsProvider } from '../../components/StreamsProvider';
 
 const addMessages = (batch: { key: string; data: Message }[], messages: Dictionary<MessageEntity>) => {
   for (const { data, key } of batch) {
@@ -124,7 +125,7 @@ class StreamComponent extends Component<
     const tree = this.getTree();
 
     return (
-      <>
+      <Layout title={stream && stream.name}>
         <h1 style={{ margin: '0.5rem', fontSize: '2rem' }}>{stream && stream.name}</h1>
         <style jsx global>
           {`
@@ -182,7 +183,7 @@ class StreamComponent extends Component<
           </a>
         </div>
         <NewMessage streamId={id} />
-      </>
+      </Layout>
     );
   }
 }
@@ -575,7 +576,7 @@ const EditMessage = ({
 
 export default () => {
   const router = useRouter();
-  return <Layout>{router.query.id && <StreamComponent {...(router.query as any)} goTo={goTo(router)} />}</Layout>;
+  return <StreamsProvider>{router.query.id && <StreamComponent {...(router.query as any)} goTo={goTo(router)} />}</StreamsProvider>;
 };
 
 

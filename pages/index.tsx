@@ -1,9 +1,9 @@
-import Layout from "../components/Layout";
-
 import { useRef, Component } from "react";
 import { useRouter } from "next/router";
 import { getStreams, Stream } from "../services/Streams";
 import { getKey } from "../utils/ordered-list";
+import { StreamsProvider } from "../components/StreamsProvider";
+import { Layout } from "../components/Layout";
 
 class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
   constructor(props) {
@@ -18,15 +18,17 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
 
   render() {
     return (
-      <Layout>
-        <div style={{
-          flexGrow: 1
-        }}>
+      <StreamsProvider>
+        <Layout title="Welcome to Streams!">
+          <div style={{
+            flexGrow: 1
+          }}>
 
-          <h1>Welcome to Streams!</h1>
-        </div>
-        <NewSpace />
-      </Layout>
+            <h1>Welcome to Streams!</h1>
+          </div>
+          <NewSpace />
+        </Layout>
+      </StreamsProvider>
     );
   }
 }
