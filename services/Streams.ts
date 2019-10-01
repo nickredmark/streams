@@ -37,17 +37,21 @@ export class StreamsService {
   public gun;
   public user;
 
-  constructor(servers: string[]) {
-    this.Gun = (window as any).Gun;
-    this.gun = this.Gun({
-      localStorage: false,
-      peers: servers,
-    });
-    this.user = this.gun.user();
+  constructor(private servers: string[]) {
   }
 
   async init() {
+    while (!(window as any).Gun) {
+      console.warn('Gun not available yet.')
+      await new Promise(res => setTimeout(res, 100));
+    }
+    this.Gun = (window as any).Gun;
+    this.gun = this.Gun({
+      localStorage: false,
+      peers: this.servers,
+    });
     /* no user needed for now
+    this.user = this.gun.user();
         await Promise.race([
             new Promise(res => this.user.recall({ sessionStorage: true }, res)),
             new Promise(res => setTimeout(res, 5000))

@@ -19,7 +19,6 @@ export class StreamsProvider extends Component<{}, { initialized: boolean, logge
         await this.streams.init();
         this.setState({
             initialized: true,
-            logged: !!this.streams.user.is
         })
     }
 
