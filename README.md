@@ -7,7 +7,7 @@
 Create a `.env` file:
 
 ```
-NAMESPACE=<yournamespace>
+SERVERS=https://gunjs.herokuapp.com/gun
 ```
 
 Pick a namespace that nobody is likely to use (a uuid?)
