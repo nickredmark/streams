@@ -385,7 +385,7 @@ const MessageContent = ({ message, streamId }: { streamId: string; message: Mess
   if (/^data:/.exec(message.text)) {
     return <a href={message.text} target="_blank">[unknown attachment]</a>
   }
-  if (/youtube\.com\/watch/.exec(message.text)) {
+  if (/youtube\.com\/watch/.exec(message.text) || /youtu\.be\//.exec(message.text)) {
     return <div className="player-wrapper"><ReactPlayer className="react-player" url={message.text} width="100%" height="100%" /></div>
   }
   if (/twitter.com\/\w+\/status\/\d+/.exec(message.text)) {
