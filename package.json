@@ -22,6 +22,8 @@
     "react-d3-cloud": "^0.7.0",
     "react-dom": "^16.8.6",
     "react-linkify": "^1.0.0-alpha",
+    "react-player": "^1.13.0",
+    "react-twitter-embed": "^2.0.8",
     "react-wordcloud": "^1.0.8",
     "stopword": "^0.3.3"
   },

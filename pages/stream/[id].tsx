@@ -12,6 +12,8 @@ import moment from 'moment';
 import { ShyButton } from '../../components/ShyButton';
 import { goTo, qstringify } from '../../utils/router';
 import { StreamsProvider } from '../../components/StreamsProvider';
+import ReactPlayer from 'react-player'
+import { TwitterTweetEmbed } from 'react-twitter-embed'
 
 const addMessages = (batch: { key: string; data: Message }[], messages: Dictionary<MessageEntity>) => {
   for (const { data, key } of batch) {
@@ -382,6 +384,12 @@ const MessageContent = ({ message, streamId }: { streamId: string; message: Mess
   }
   if (/^data:/.exec(message.text)) {
     return <a href={message.text} target="_blank">[unknown attachment]</a>
+  }
+  if (/youtube\.com\/watch/.exec(message.text)) {
+    return <div className="player-wrapper"><ReactPlayer className="react-player" url={message.text} width="100%" height="100%" /></div>
+  }
+  if (/twitter.com\/\w+\/status\/\d+/.exec(message.text)) {
+    return <TwitterTweetEmbed tweetId={message.text.split('/').pop()} options={{ conversation: 'none' }} />
   }
   if (/^(https?:\/\/|www)/.exec(message.text)) {
     return (

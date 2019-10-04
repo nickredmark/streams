@@ -28,6 +28,7 @@ export const Layout = ({ title, children }) => (
         }
 
         img, video {
+          display: block;
           max-width: 100%;
           margin: auto;
         }
@@ -95,6 +96,21 @@ export const Layout = ({ title, children }) => (
           margin-top: 0.5rem;
           border-top: none;
           border-bottom: 1px solid lightgray;
+        }
+
+        .player-wrapper {
+          position: relative;
+          padding-top: 56.25% /* Player ratio: 100 / (1280 / 720) */
+        }
+         
+        .react-player {
+          position: absolute;
+          top: 0;
+          left: 0;
+        }
+
+        twitter-widget {
+          margin: auto;
         }
       `}
     </style>
