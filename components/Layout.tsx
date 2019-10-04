@@ -112,6 +112,20 @@ export const Layout = ({ title, children }) => (
         twitter-widget {
           margin: auto;
         }
+
+        .message-meta {
+          display: inline;
+          marginLeft: 0.5rem;  
+        }
+
+        @media only screen and (min-width: 35rem) {
+          .message-meta {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 100%;
+          }
+        }
       `}
     </style>
     {children}

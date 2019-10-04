@@ -325,12 +325,7 @@ const MessageComponent = ({
           <div style={{ position: 'relative' }}>
             <a id={id} />
             <MessageContent message={node.entity} streamId={streamId} />
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: '100%',
-              marginLeft: '0.5rem'
-            }}>
+            <div className="message-meta">
               <a
                 href="#"
                 className="message-permalink"
@@ -346,7 +341,7 @@ const MessageComponent = ({
                 }}
               >
                 !
-          </a>
+              </a>
               <a
                 className="message-permalink"
                 style={{
@@ -358,7 +353,7 @@ const MessageComponent = ({
                 href={`/stream/${streamId}#${id}`}
               >
                 #
-          </a>
+              </a>
             </div>
           </div>
         )}
