@@ -16,7 +16,7 @@ export const NewMessage = ({ streamId }) => {
         >
             <input
                 ref={text}
-                placeholder="new message"
+                placeholder="new thought"
                 style={{
                     width: "100%",
                     padding: "1rem",

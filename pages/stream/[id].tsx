@@ -126,7 +126,7 @@ class StreamComponent extends Component<
 
     return (
       <Layout title={stream && stream.name}>
-        <h1 style={{ margin: '0.5rem', fontSize: '2rem' }}>{stream && stream.name}</h1>
+        <header><h1>{stream && stream.name}</h1></header>
         <style jsx global>
           {`
             .message-permalink {
@@ -137,53 +137,54 @@ class StreamComponent extends Component<
             }
           `}
         </style>
-        <div
-          style={{
-            flexGrow: 1,
-            flexShrink: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-            padding: '0.5rem',
-          }}
-        >
-          {!all && oldMessagesAvailable && (
-            <ShyButton
-              onClick={() => {
-                this.setState({
-                  messages: { ...this.allMessages },
-                });
-                goTo({ all: true });
-              }}
-            >
-              load full stream
+        <div className="body-wrapper">
+          <div className="body">
+            <div className="body-content">
+              <div className="content">
+                {!all && oldMessagesAvailable && (
+                  <ShyButton
+                    onClick={() => {
+                      this.setState({
+                        messages: { ...this.allMessages },
+                      });
+                      goTo({ all: true });
+                    }}
+                  >
+                    load full stream
             </ShyButton>
-          )}
-          {tree.length === 0 && stream && stream._['>'].lastMessage && moment(stream._['>'].lastMessage) > moment().subtract(2, 'days') && <div>Loading...</div>}
-          <Tree
-            streamId={id}
-            tree={tree}
-          />
-        </div>
-        <div
-          style={{
-            textAlign: 'right',
-          }}
-        >
-          <a
-            href="#"
+                )}
+                {tree.length === 0 && stream && stream._['>'].lastMessage && moment(stream._['>'].lastMessage) > moment().subtract(2, 'days') && <div>Loading...</div>}
+                <Tree
+                  streamId={id}
+                  tree={tree}
+                />
+              </div>
+            </div>
+          </div>
+          <div
             style={{
-              display: 'inline-block',
-              padding: '1rem',
-              textDecoration: 'none',
-              outline: 'none',
+              position: 'absolute',
+              right: 0,
+              bottom: 0,
+              background: 'transparent'
             }}
-            onClick={e => (e.preventDefault(), goTo({ highlights: highlights ? undefined : true }))}
           >
-            !
+            <a
+              href="#"
+              style={{
+                display: 'inline-block',
+                padding: '1rem',
+                textDecoration: 'none',
+                outline: 'none',
+              }}
+              onClick={e => (e.preventDefault(), goTo({ highlights: highlights ? undefined : true }))}
+            >
+              !
           </a>
+          </div>
         </div>
         <NewMessage streamId={id} />
-      </Layout>
+      </Layout >
     );
   }
 }

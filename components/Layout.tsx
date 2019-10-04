@@ -7,6 +7,7 @@ export const Layout = ({ title, children }) => (
     flexDirection: "column"
   }}>
     <Head>
+      <link href="https://fonts.googleapis.com/css?family=Open Sans&display=swap" rel="stylesheet" />
       <title>{title}</title>
     </Head>
     <style jsx global>
@@ -20,7 +21,7 @@ export const Layout = ({ title, children }) => (
         body {
           height: 100%;
           margin: 0;
-          font-family: sans-serif;
+          font-family: 'Open Sans', sans;
         }
         #__next {
           height: 100%;
@@ -36,6 +37,58 @@ export const Layout = ({ title, children }) => (
         .markdown p {
           display: inline;
           margin: 0;
+        }
+
+        header {
+          padding: 0.5rem;
+          border-bottom: 1px solid lightgray;
+          width: 100%;
+        }
+        h1 {
+          margin: 0;
+          font-size: 1.5rem;
+          display: block;
+          margin: auto;
+          max-width: 35rem;
+          width: 100%;
+        }
+        .body-wrapper {
+          display: flex;
+          flex-grow: 1;
+          flex-shrink: 1;
+          min-height: 0;
+          position: relative;
+        }
+        .body {
+          flex-grow: 1;
+          flex-shrink: 1;
+          min-height: 0;
+          overflow-y: scroll;
+          width: 100%;
+          overflow-x: hidden;
+        }
+        .body-content {
+          padding: 0.5rem;
+        }
+        .content {
+          margin: auto;
+          max-width: 35rem;
+          width: 100%;
+          line-height: 1.5;
+        }
+        @media only screen and (min-width: 35rem) {
+          .body-content {
+            margin-left: calc(100vw - 100%);
+          }
+        }
+
+        ul {
+          list-style: none;
+          padding: 0;
+        }
+
+        .message {
+          margin-bottom: 0.5rem;
         }
       `}
     </style>

@@ -45,34 +45,33 @@ class Space extends Component<Props, State> {
         const { streams, space } = this.state;
         return (
             <Layout title={space && space.name || 'Space'}>
-                <h1 style={{ margin: '0.5rem', fontSize: '2rem' }}>{space && space.name}</h1>
-
-                <div style={{
-                    flexGrow: 1,
-                    flexShrink: 1,
-                    minHeight: 0,
-                    overflowY: "auto"
-                }}>
-                    <ul
-                        style={{
-                            margin: 0
-                        }}
-                    >
-                        {Object.keys(streams).sort(streamComparator(streams)).map(key => {
-                            const stream = streams[key]
-                            return <li key={key}>
-                                <a href={`/stream/${key}`} target="_blank" style={{
-                                    textDecoration: "none",
+                <header><h1>{space && space.name}</h1></header>
+                <div className="body">
+                    <div className="body-content">
+                        <div className="content">
+                            <ul
+                                style={{
+                                    margin: 0,
+                                    listStyle: "none"
                                 }}
-                                >{stream.name}</a>
-                                <span style={{
-                                    fontSize: "80%",
-                                    color: "lightgray",
-                                    marginLeft: "0.75rem"
-                                }}>{formatTime(getStreamTimestamp(stream))}</span>
-                            </li>
-                        })}
-                    </ul>
+                            >
+                                {Object.keys(streams).sort(streamComparator(streams)).map(key => {
+                                    const stream = streams[key]
+                                    return <li key={key}>
+                                        <a href={`/stream/${key}`} target="_blank" style={{
+                                            textDecoration: "none",
+                                        }}
+                                        >{stream.name}</a>
+                                        <span style={{
+                                            fontSize: "80%",
+                                            color: "lightgray",
+                                            marginLeft: "0.75rem"
+                                        }}>{formatTime(getStreamTimestamp(stream))}</span>
+                                    </li>
+                                })}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
                 <NewStream spaceId={id} />
             </Layout>
