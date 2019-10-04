@@ -320,37 +320,44 @@ const MessageComponent = ({
           onOutdent={onOutdent}
         />
       ) : (
-          <div>
+          <div style={{ position: 'relative' }}>
             <a id={id} />
             <MessageContent message={node.entity} streamId={streamId} />
-            <a
-              href="#"
-              className="message-permalink"
-              style={{
-                marginLeft: '0.25rem',
-                color: 'lightgray',
-                textDecoration: 'none',
-                fontSize: '0.8rem',
-              }}
-              onClick={e => {
-                e.preventDefault();
-                getStreams().updateMessage(node.entity, 'highlighted', !node.entity.highlighted);
-              }}
-            >
-              !
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: '100%',
+              marginLeft: '0.5rem'
+            }}>
+              <a
+                href="#"
+                className="message-permalink"
+                style={{
+                  marginLeft: '0.25rem',
+                  color: 'lightgray',
+                  textDecoration: 'none',
+                  fontSize: '0.8rem',
+                }}
+                onClick={e => {
+                  e.preventDefault();
+                  getStreams().updateMessage(node.entity, 'highlighted', !node.entity.highlighted);
+                }}
+              >
+                !
           </a>
-            <a
-              className="message-permalink"
-              style={{
-                marginLeft: '0.25rem',
-                color: 'lightgray',
-                textDecoration: 'none',
-                fontSize: '0.8rem',
-              }}
-              href={`/stream/${streamId}#${id}`}
-            >
-              #
+              <a
+                className="message-permalink"
+                style={{
+                  marginLeft: '0.25rem',
+                  color: 'lightgray',
+                  textDecoration: 'none',
+                  fontSize: '0.8rem',
+                }}
+                href={`/stream/${streamId}#${id}`}
+              >
+                #
           </a>
+            </div>
           </div>
         )}
       {node.children.length > 0 && (
@@ -391,6 +398,9 @@ const MessageContent = ({ message, streamId }: { streamId: string; message: Mess
   }
   if (message.text === 'CHART') {
     return <Chart streamId={streamId} />;
+  }
+  if (message.text === '.') {
+    return <hr />
   }
 
   return (

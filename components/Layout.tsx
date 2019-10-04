@@ -28,7 +28,8 @@ export const Layout = ({ title, children }) => (
         }
 
         img, video {
-          max-width: 30rem;
+          max-width: 100%;
+          margin: auto;
         }
 
         .markdown {
@@ -89,6 +90,11 @@ export const Layout = ({ title, children }) => (
 
         .message {
           margin-bottom: 0.5rem;
+        }
+        hr {
+          margin-top: 0.5rem;
+          border-top: none;
+          border-bottom: 1px solid lightgray;
         }
       `}
     </style>
