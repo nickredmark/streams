@@ -402,7 +402,7 @@ const MessageContent = ({ message, streamId }: { streamId: string; message: Mess
   if (message.text === 'CHART') {
     return <Chart streamId={streamId} />;
   }
-  if (message.text === '.') {
+  if (/^(\.+|-+)/.exec(message.text)) {
     return <hr />
   }
 
