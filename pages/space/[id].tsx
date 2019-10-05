@@ -90,10 +90,8 @@ const NewStream = ({ spaceId }) => {
                 name.current.value = ''
                 if (/^\w{20,23}$/.test(streamName)) {
                     await getStreams().addStream(spaceId, streamName)
-                    // router.push(`/stream/${streamName}`);
                 } else {
-                    const stream = await getStreams().createStream(spaceId, streamName)
-                    router.push(`/stream/${getKey(stream)}`);
+                    await getStreams().createStream(spaceId, streamName)
                 }
             }}
         >

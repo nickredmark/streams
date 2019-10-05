@@ -4,7 +4,7 @@ import { stringify } from 'querystring';
 export const goTo = (router) => (newQuery: any) => {
     router.replace(
         `${router.pathname}${qstringify({ ...router.query, ...newQuery })}`,
-        `${location.pathname}${qstringify({ ...router.query, ...newQuery, name: undefined })}`,
+        `${location.pathname}${qstringify({ ...router.query, ...newQuery, id: undefined })}`,
     );
 };
 
