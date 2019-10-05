@@ -208,12 +208,7 @@ const Tree = ({
 }) => {
   const router = useRouter();
 
-  const focus = (focus: string | undefined) => {
-    router.replace(
-      `${router.pathname}${qstringify({ ...router.query, focus })}`,
-      `${location.pathname}${qstringify({ ...router.query, focus, name: undefined })}`,
-    );
-  };
+  const focus = (focus: string | undefined) => goTo(router)({ focus });
 
   return (
     <div>
