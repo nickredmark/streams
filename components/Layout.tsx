@@ -126,6 +126,31 @@ export const Layout = ({ title, children }) => (
             left: 100%;
           }
         }
+
+        .stream-item {
+          display: block;
+          width: 100%;
+          text-decoration: none;
+          border-bottom: 1px solid lightgray;
+          padding: 1rem 0;
+        }
+        .stream-item-name {
+          display: block;
+          float: left;
+          font-weight: bold;
+          margin-bottom: 0.5rem;
+        }
+        .stream-item-date {
+          float: right;
+          font-size: 80%;
+          color: lightgray;
+        }
+        .stream-item-last-message {
+          clear: both;
+          display: block;
+          font-size: 90%;
+          color: darkgray;
+        }
       `}
     </style>
     {children}

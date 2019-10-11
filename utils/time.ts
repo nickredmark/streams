@@ -1,11 +1,15 @@
 import moment from "moment";
 
 export const formatTime = (timestamp: number) => {
-    if (moment().subtract(1, 'day') < moment(timestamp)) {
+    if (moment().subtract(2, 'day') < moment(timestamp)) {
         return moment(timestamp).fromNow();
     }
 
-    return moment(timestamp).format('YYYY-MM-DD HH:mm')
+    if (moment().subtract(7, 'day') < moment(timestamp)) {
+        return moment(timestamp).format('dddd');
+    }
+
+    return moment(timestamp).format('YYYY/MM/DD')
 }
 
 

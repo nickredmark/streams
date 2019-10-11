@@ -1,23 +1,25 @@
 import { useRef, Component } from "react";
 import { useRouter } from "next/router";
-import { getStreams, SpaceEntity, StreamEntity } from "../../services/Streams";
+import { getStreams, SpaceEntity, StreamEntity, MessageEntity } from "../../services/Streams";
 import { formatTime, streamComparator, getStreamTimestamp } from "../../utils/time";
 import { goTo } from "../../utils/router";
 import { getKey } from "../../utils/ordered-list";
 import { StreamsProvider } from "../../components/StreamsProvider";
 import { Layout } from "../../components/Layout";
+import { ShortMessageContent } from "../../components/MessageContent";
 
 type Props = {
     id: string;
 }
 
-type State = { space: SpaceEntity; streams: { [key: string]: StreamEntity } }
+type State = { space: SpaceEntity; streams: { [key: string]: StreamEntity }, messages: { [key: string]: MessageEntity } }
 
 class Space extends Component<Props, State> {
     constructor(props) {
         super(props)
         this.state = {
             streams: {},
+            messages: {},
             space: null,
         }
     }
@@ -37,12 +39,24 @@ class Space extends Component<Props, State> {
                 }
                 return { streams }
             })
+        }, (batch) => {
+            this.setState(state => {
+                const messages = { ...state.messages };
+                for (const { data } of batch) {
+                    const key = getKey(data);
+                    messages[key] = {
+                        ...messages[key],
+                        ...data,
+                    }
+                }
+                return { messages }
+            })
         })
     }
 
     render() {
         const { id } = this.props;
-        const { streams, space } = this.state;
+        const { streams, space, messages } = this.state;
         return (
             <Layout title={space && space.name || 'Space'}>
                 <header><h1>{space && space.name}</h1></header>
@@ -57,16 +71,13 @@ class Space extends Component<Props, State> {
                             >
                                 {Object.keys(streams).sort(streamComparator(streams)).map(key => {
                                     const stream = streams[key]
+                                    const lastMessage = messages[stream.lastMessage && stream.lastMessage['#']];
                                     return <li key={key}>
-                                        <a href={`/stream/${key}`} target="_blank" style={{
-                                            textDecoration: "none",
-                                        }}
-                                        >{stream.name}</a>
-                                        <span style={{
-                                            fontSize: "80%",
-                                            color: "lightgray",
-                                            marginLeft: "0.75rem"
-                                        }}>{formatTime(getStreamTimestamp(stream))}</span>
+                                        <a href={`/stream/${key}`} target="_blank" className="stream-item"
+                                        ><span className="stream-item-name">{stream.name}</span>
+                                            <span className="stream-item-date">{formatTime(getStreamTimestamp(stream))}</span>
+                                            <span className="stream-item-last-message">{lastMessage && lastMessage.text && <ShortMessageContent message={lastMessage} />}</span>
+                                        </a>
                                     </li>
                                 })}
                             </ul>

@@ -4,7 +4,6 @@ import { getStreams, MessageEntity, Message, StreamEntity } from '../../services
 import { useRouter } from 'next/router';
 import { NewMessage } from '../../components/NewMessage';
 import dragDrop from 'drag-drop';
-import { Chart } from '../../components/Chart';
 import { sort, getKey } from '../../utils/ordered-list';
 import { treeify, Node } from '../../utils/trees';
 import { Dictionary } from 'lodash';
@@ -13,7 +12,7 @@ import { ShyButton } from '../../components/ShyButton';
 import { goTo, qstringify } from '../../utils/router';
 import { StreamsProvider } from '../../components/StreamsProvider';
 import ReactPlayer from 'react-player'
-import { TwitterTweetEmbed } from 'react-twitter-embed'
+import { MessageContent } from '../../components/MessageContent';
 
 const addMessages = (batch: { key: string; data: Message }[], messages: Dictionary<MessageEntity>) => {
   for (const { data, key } of batch) {
@@ -368,51 +367,6 @@ const MessageComponent = ({
   );
 };
 
-const MessageContent = ({ message, streamId }: { streamId: string; message: MessageEntity }) => {
-  if (/^data:image\//.exec(message.text)) {
-    return <img src={message.text} />;
-  }
-  if (/^data:/.exec(message.text)) {
-    return <a href={message.text} target="_blank">[unknown attachment]</a>
-  }
-  if (/youtube\.com\/watch/.exec(message.text) || /youtu\.be\//.exec(message.text)) {
-    return <div className="player-wrapper"><ReactPlayer className="react-player" url={message.text} width="100%" height="100%" /></div>
-  }
-  if (/twitter.com\/\w+\/status\/\d+/.exec(message.text)) {
-    return <TwitterTweetEmbed tweetId={message.text.split('/').pop()} options={{ conversation: 'none' }} />
-  }
-  if (/^(https?:\/\/|www)/.exec(message.text)) {
-    return (
-      <a
-        href={message.text}
-        style={{
-          color: 'inherit',
-        }}
-        target="_blank"
-      >
-        {message.text}
-      </a>
-    );
-  }
-  if (message.text === 'CHART') {
-    return <Chart streamId={streamId} />;
-  }
-  if (/^(\.+|-+)$/.exec(message.text)) {
-    return <hr />
-  }
-
-  return (
-    <span
-      style={{
-        ...(message.highlighted && {
-          fontWeight: 'bold',
-        }),
-      }}
-    >
-      {message.text}
-    </span>
-  );
-};
 
 const EditMessage = ({
   id,

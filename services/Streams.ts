@@ -120,16 +120,18 @@ export class StreamsService {
     this.gun.get(id).on(listener);
   }
 
-  onSpaceStream(space: string, listener: (data: StreamEntity, key: string) => void) {
+  onSpaceStream(space: string, listener: (data: StreamEntity, key: string) => void, lastMessageListener: (data: MessageEntity, key: string) => void) {
     this.gun
       .get(space)
       .get('streams')
       .map()
-      .on(listener);
+      .on(listener)
+      .get('lastMessage')
+      .on(lastMessageListener)
   }
 
-  onStreams(space: string, listener: (data: { data: StreamEntity; key: string }[]) => void) {
-    batch(cb => this.onSpaceStream(space, cb), listener);
+  onStreams(space: string, listener: (data: { data: StreamEntity; key: string }[]) => void, lastMessageListener: (data: { data: MessageEntity; key: string }[]) => void) {
+    batch((cb, cb2) => this.onSpaceStream(space, cb, cb2), listener, lastMessageListener);
   }
 
   onMessage(streamName: string, listener: (data: MessageEntity, key: string) => void) {
@@ -196,26 +198,29 @@ export const messageMap = m => (m && typeof m === 'object' && m._ ? m : undefine
 
 const INTERVAL = 200;
 
-const batch = (fn, listener) => {
-  let lastMessage;
-  let queue = [];
-  fn((data, key) => {
-    if (queue.length) {
+const batch = (fn, ...listeners) => {
+  fn(...listeners.map(listener => {
+    let lastMessage;
+    let queue = [];
+
+    return (data, key) => {
+      if (queue.length) {
+        queue.push({ data, key });
+        return;
+      }
+
+      if (!lastMessage || lastMessage < moment().subtract(INTERVAL, 'ms')) {
+        lastMessage = moment();
+        listener([{ data, key }]);
+        return;
+      }
+
       queue.push({ data, key });
-      return;
+      setTimeout(() => {
+        listener(queue);
+        lastMessage = undefined;
+        queue = [];
+      }, INTERVAL);
     }
-
-    if (!lastMessage || lastMessage < moment().subtract(INTERVAL, 'ms')) {
-      lastMessage = moment();
-      listener([{ data, key }]);
-      return;
-    }
-
-    queue.push({ data, key });
-    setTimeout(() => {
-      listener(queue);
-      lastMessage = undefined;
-      queue = [];
-    }, INTERVAL);
-  });
+  }));
 };
