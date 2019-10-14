@@ -1,7 +1,7 @@
 import { useRef } from "react";
-import { getStreams } from "../services/Streams";
+import { getStreams, StreamEntity } from "../services/Streams";
 
-export const NewMessage = ({ streamId }) => {
+export const NewMessage = ({ stream }: { stream: StreamEntity }) => {
     const text = useRef(null);
     return (
         <form
@@ -11,7 +11,7 @@ export const NewMessage = ({ streamId }) => {
                     text: text.current.value
                 };
                 text.current.value = "";
-                await getStreams().createMessage(streamId, message);
+                await getStreams().createMessage({ stream, message });
             }}
         >
             <input

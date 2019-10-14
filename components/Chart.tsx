@@ -1,9 +1,9 @@
 import { Component } from 'react';
-import { getStreams, Message } from '../services/Streams';
+import { getStreams, Message, MessageEntity } from '../services/Streams';
 import { Mermaid } from './Mermaid';
 
 export class Chart extends Component<
-  { streamId: string },
+  { streamId: string, epriv: string, readerEpriv: string },
   {
     messages: { [key: string]: Message };
   }
@@ -16,10 +16,15 @@ export class Chart extends Component<
   }
 
   async componentDidMount() {
-    getStreams().onMessages(this.props.streamId, batch => {
+    const { epriv, readerEpriv } = this.props;
+    getStreams().onMessage(this.props.streamId, async batch => {
+      const decryptedBatch: { data: MessageEntity, key: string }[] = [];
+      for (const { data, key } of batch) {
+        decryptedBatch.push({ data: await getStreams().decryptMessage({ epriv, readerEpriv, message: data }), key });
+      }
       this.setState(state => {
         const messages = { ...state.messages };
-        for (const { data, key } of batch) {
+        for (const { data, key } of decryptedBatch) {
           if (data) {
             messages[key] = {
               ...messages[key],

@@ -151,6 +151,29 @@ export const Layout = ({ title, children }) => (
           font-size: 90%;
           color: darkgray;
         }
+
+        
+        h1 {
+          position: relative;
+        }
+        .space-permalink {
+          position: absolute;
+          top: 0;
+          left: 100%;
+        }
+        .message-permalink, .space-permalink {
+          color: lightgray;
+          text-decoration: none;
+          font-weight: normal;
+        }
+        .message-permalink {
+          font-size: 0.8rem;
+          margin-left: 0.25rem;
+          visibility: hidden;
+        }
+        .message:hover .message-permalink {
+          visibility: visible;
+        }
       `}
     </style>
     {children}

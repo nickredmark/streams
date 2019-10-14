@@ -3,7 +3,7 @@ import ReactPlayer from "react-player";
 import { TwitterTweetEmbed } from 'react-twitter-embed'
 import { Chart } from './Chart';
 
-export const MessageContent = ({ message, streamId }: { streamId: string; message: MessageEntity }) => {
+export const MessageContent = ({ message, streamId, epriv, readerEpriv }: { streamId: string; message: MessageEntity, epriv: string, readerEpriv: string }) => {
     if (/^data:image\//.exec(message.text)) {
         return <img src={message.text} />;
     }
@@ -17,7 +17,7 @@ export const MessageContent = ({ message, streamId }: { streamId: string; messag
         return <TwitterTweetEmbed tweetId={message.text.split('/').pop()} options={{ conversation: 'none' }} />
     }
     if (message.text === 'CHART') {
-        return <Chart streamId={streamId} />;
+        return <Chart streamId={streamId} epriv={epriv} readerEpriv={readerEpriv} />;
     }
     if (/^(\.+|-+|\*+|~+)$/.exec(message.text)) {
         return <hr />

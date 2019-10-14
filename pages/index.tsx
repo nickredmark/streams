@@ -1,7 +1,6 @@
 import { useRef, Component } from "react";
 import { useRouter } from "next/router";
 import { getStreams, Stream } from "../services/Streams";
-import { getKey } from "../utils/ordered-list";
 import { StreamsProvider } from "../components/StreamsProvider";
 import { Layout } from "../components/Layout";
 
@@ -11,9 +10,6 @@ class Streams extends Component<{}, { streams: { [key: string]: Stream } }> {
     this.state = {
       streams: {}
     }
-  }
-
-  async componentDidMount() {
   }
 
   render() {
@@ -42,8 +38,8 @@ const NewSpace = () => {
         e.preventDefault();
         const spaceName = name.current.value
         name.current.value = ''
-        const space = await getStreams().createSpace(spaceName)
-        router.push(`/space/${getKey(space)}`);
+        const pair = await getStreams().createSpace(spaceName)
+        router.push(`/space/~${pair.pub}/member/${pair.epriv}`);
       }}
     >
       <input ref={name} placeholder="new space" style={{

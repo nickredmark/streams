@@ -1,37 +1,31 @@
+import { Gun, GunEntity, GUN, put, getId } from "./secure";
+
 /* OPERATIONS FOR A UNIVERSALLY ORDERED LIST */
 
-export const moveBetween = (gun: Gun, current: GunEntity, previous: GunEntity & Ordered, next: GunEntity & Ordered) => {
-  update(gun, current, 'index', JSON.stringify(getIndexBetween(getKey(current), previous, next)));
-};
+export const moveBetween = ({
+  currentId,
+  previous,
+  next,
+  ...props
+}: {
+  Gun: GUN,
+  gun: Gun,
+  priv: string,
+  pub: string,
+  epriv: string,
+  currentId: string,
+  previous: GunEntity & Ordered,
+  next: GunEntity & Ordered
+}) =>
+  put({ ...props, id: currentId, key: 'index', value: JSON.stringify(getIndexBetween(currentId, previous, next)) });
 
 export const sort = <T extends GunEntity & Ordered>(entities: T[]) => entities.sort(compare);
 
 /* UTILITY FUNCTIONS */
 
-export type Gun = {
-  get: (key: string) => Gun;
-  put: (o: Object) => Gun;
-  set: (o: Object) => Gun;
-};
-
-export type GunEntity = {
-  _: {
-    ['#']?: string;
-    get?: string;
-  };
-};
-
 export type Ordered = {
   index: string;
 };
-
-export type Primitive = string | boolean | number;
-
-export const update = (gun: Gun, o: GunEntity, key: string, value: Primitive) => {
-  gun.get(getKey(o)).get(key).put(value);
-};
-
-export const getKey = (o: GunEntity) => o._['#'] || o._.get;
 
 type IndexPart = string | undefined | null;
 
@@ -89,8 +83,12 @@ export const getIndexBetween = (currentKey: string, prev: GunEntity & Ordered, n
 
 export const getIndex = (entity: GunEntity & Ordered) => {
   if (entity.index) {
-    return JSON.parse(entity.index);
+    if (typeof entity.index === 'string') {
+      return JSON.parse(entity.index);
+    }
+
+    return entity.index
   }
 
-  return [getKey(entity)];
+  return [getId(entity)];
 };

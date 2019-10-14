@@ -1,5 +1,6 @@
-import { moveBetween, update, GunEntity, Ordered, getKey, getIndexBetween, Primitive } from '../utils/ordered-list';
+import { moveBetween, Ordered } from '../utils/ordered-list';
 import moment from 'moment';
+import { GunEntity, Gun, GUN, put, Credentials, getId, create, getPub, Link, Primitive } from '../utils/secure';
 
 let streams: StreamsService;
 
@@ -13,15 +14,16 @@ export const getStreams = () => {
 };
 
 export type Space = {
-  name: string
+  name: string;
 }
 
 export type SpaceEntity = Space & GunEntity;
 
 export type Stream = {
   name: string;
-  lastMessage: any;
+  lastMessage: Link;
 };
+
 
 export type StreamEntity = Stream & GunEntity;
 
@@ -32,13 +34,13 @@ export type Message = {
 
 export type MessageEntity = Message & GunEntity & Ordered;
 
-export class StreamsService {
-  private Gun;
-  public gun;
-  public user;
+type Group = 'member' | 'reader' | 'guest'
 
-  constructor(private servers: string[]) {
-  }
+export class StreamsService {
+  public Gun: GUN;
+  public gun: Gun;
+
+  constructor(private servers: string[]) { }
 
   async init() {
     while (!(window as any).Gun) {
@@ -50,69 +52,183 @@ export class StreamsService {
       localStorage: false,
       peers: this.servers,
     });
-    /* no user needed for now
-    this.user = this.gun.user();
-        await Promise.race([
-            new Promise(res => this.user.recall({ sessionStorage: true }, res)),
-            new Promise(res => setTimeout(res, 5000))
-        ]);
-        */
   }
 
-  async createSpace(name: string): Promise<SpaceEntity> {
-    return await new Promise(res => { const ref = this.gun.get(this.gun.opt()._.opt.uuid()).put({ name }, () => res(ref)) });
+  /* WRITE */
+
+  async createSpace(name: string): Promise<Credentials> {
+    const cred = await create({ Gun: this.Gun, gun: this.gun });
+    const base = {
+      Gun: this.Gun,
+      gun: this.gun,
+      priv: cred.priv,
+      pub: cred.pub,
+      epriv: cred.readerEpriv,
+      id: cred.id,
+    }
+    await put({ ...base, key: 'name', value: name });
+
+    return cred;
   }
 
-  async createStream(space: string, name: string): Promise<StreamEntity> {
-    return await new Promise(res => {
-      const ref = this.gun
-        .get(space)
-        .get('streams')
-        .set({
-          name
-        }, () => res(ref))
-    });
+  async createStream({ space, streamName }: { space: SpaceEntity, streamName: string }) {
+    const cred = await create({ Gun: this.Gun, gun: this.gun });
+    const base = {
+      Gun: this.Gun,
+      gun: this.gun,
+      pub: cred.pub,
+      priv: cred.priv,
+      epriv: cred.readerEpriv,
+    }
+    await put({ ...base, key: 'name', value: streamName });
+    await this.addStream({ space, streamId: `~${cred.pub}`, streamEpriv: cred.epriv, streamReaderEpriv: cred.readerEpriv })
   }
 
-  async addStream(space: string, streamId: string) {
-    return await new Promise(res => {
-      const ref = this.gun.get(streamId);
-      this.gun.get(space).get('streams').get(streamId).put(ref);
-      console.log(ref);
-      res();
+  async addStream({
+    space,
+    streamId,
+    streamEpriv,
+    streamReaderEpriv,
+  }: {
+    space: SpaceEntity,
+    streamId: string,
+    streamEpriv?: string,
+    streamReaderEpriv?: string
+  }) {
+    const base = {
+      Gun: this.Gun,
+      gun: this.gun,
+      pub: getPub(space),
+      priv: space.priv,
+      epriv: space['reader-epriv'],
+      key: streamId
+    }
+    await put({ ...base, sub: 'streams', link: streamId });
+    if (streamEpriv) {
+      await put({ ...base, epriv: space.epriv, sub: 'streams-eprivs', value: streamEpriv });
+    }
+    if (streamReaderEpriv) {
+      await put({ ...base, sub: 'streams-reader-eprivs', value: streamReaderEpriv });
+    }
+  }
+
+  async createMessage({ stream, message, parentId, previous, next }: { stream: StreamEntity, message: Message, parentId?: string, previous?: MessageEntity, next?: MessageEntity }) {
+    const uuid = this.getUUID();
+    const pub = getPub(stream);
+    const base = { Gun: this.Gun, gun: this.gun, priv: stream.priv, epriv: stream["reader-epriv"], pub: pub }
+    const messageId = `${uuid}~${pub}.`;
+    for (const key of Object.keys(message)) {
+      await put({ ...base, sub: uuid, key, value: message[key] });
+    }
+    if (parentId) {
+      await this.append({ stream, messageId, parentId });
+    }
+    if (previous || next) {
+      await this.moveBetween({ stream, currentId: messageId, previous, next });
+    }
+    await put({ ...base, sub: 'messages', key: messageId, link: messageId })
+    await put({ ...base, key: 'lastMessage', link: messageId })
+    return messageId;
+  }
+
+  async updateMessage({ stream, messageId, key, value }: { stream: StreamEntity, messageId: string, key: string, value: Primitive }) {
+    await put({ Gun: this.Gun, gun: this.gun, pub: getPub(stream), priv: stream.priv, epriv: stream["reader-epriv"], id: messageId, key, value })
+  }
+
+  async deleteMessage({ stream, messageId }: { stream: StreamEntity, messageId: string }) {
+    await put({
+      Gun: this.Gun,
+      gun: this.gun,
+      priv: stream.priv,
+      epriv: stream["reader-epriv"],
+      pub: getPub(stream),
+      sub: 'messages',
+      key: messageId,
+      value: null
     })
   }
 
-  async createMessage(stream: string, message: Message, parent?: MessageEntity, prev?: MessageEntity, next?: MessageEntity) {
-    let ref;
-    for (let i = 0; i < 3; i++) {
-      ref = this.gun
-        .get(stream)
-        .get('messages')
-        .set(message);
-      if (ref) {
-        break;
-      }
-      await new Promise(res => setTimeout(res, 0));
-    }
-    if (!ref) {
-      console.log(stream, message);
-      throw new Error('Failed 3 times to create message.');
-    }
-    if (parent) {
-      this.append(ref, parent);
-    }
-    if (prev || next) {
-      this.moveBetween(ref, prev, next);
-    }
-    this.gun
-      .get(stream)
-      .get('lastMessage')
-      .put(ref);
-    return getKey(ref);
+  async moveBetween({ stream, ...rest }: { stream: StreamEntity, currentId: string, previous: MessageEntity, next: MessageEntity }) {
+    await moveBetween({ Gun: this.Gun, gun: this.gun, pub: getPub(stream), priv: stream.priv, epriv: stream["reader-epriv"], ...rest });
   }
 
-  onSpace(id: string, listener: (data: SpaceEntity, id: string) => void) {
+  async append({ stream, messageId, parentId }: { stream: StreamEntity, messageId: string, parentId: string }) {
+    await put({ Gun: this.Gun, gun: this.gun, pub: getPub(stream), priv: stream.priv, epriv: stream["reader-epriv"], id: messageId, key: 'parent', link: parentId })
+  }
+
+  /* DECRYPT */
+
+  async decryptSpace({ epriv, readerEpriv, space }: { epriv?: string, readerEpriv?: string, space: SpaceEntity }) {
+    return this.decrypt({
+      epriv, readerEpriv, entity: space, map: {
+        _: 'guest',
+        priv: 'member',
+        epriv: 'member',
+        'reader-epriv': 'member',
+        name: 'reader',
+      }
+    })
+  }
+
+  async decryptStream({ epriv, readerEpriv, stream }: { epriv?: string, readerEpriv?: string, stream: StreamEntity }) {
+    return this.decrypt({
+      epriv, readerEpriv, entity: stream, map: {
+        _: 'guest',
+        priv: 'member',
+        epriv: 'member',
+        'reader-epriv': 'member',
+        name: 'reader',
+        lastMessage: 'guest'
+      }
+    })
+  }
+
+  async decryptMessage({ epriv, readerEpriv, message }: { epriv?: string, readerEpriv?: string, message: MessageEntity }) {
+    return this.decrypt({
+      epriv, readerEpriv, entity: message, map: {
+        _: 'guest',
+        priv: 'member',
+        epriv: 'member',
+        'reader-epriv': 'member',
+        highlighted: 'reader',
+        index: 'reader',
+        text: 'reader'
+      }
+    })
+  }
+
+  async decrypt<T extends GunEntity>({ epriv, readerEpriv, entity, map }: { epriv?: string, readerEpriv?: string, entity: T | string, map: { [x in keyof T]: Group } }): Promise<T> {
+    if (!readerEpriv && epriv && entity["reader-epriv"]) {
+      readerEpriv = await this.Gun.SEA.decrypt(entity["reader-epriv"], epriv);
+    }
+    const keysByRole = {
+      member: epriv,
+      reader: readerEpriv,
+    }
+    if (typeof entity === 'string') {
+      if (entity.startsWith('SEA{')) {
+        return await this.Gun.SEA.decrypt(entity, readerEpriv) as any
+      } else {
+        return entity as any;
+      }
+    } else {
+      entity = { ...entity };
+      for (const key of Object.keys(entity)) {
+        if (typeof entity[key] === 'string' && entity[key].startsWith('SEA{')) {
+          if (keysByRole[map[key]]) {
+            entity[key] = await this.Gun.SEA.decrypt(entity[key], keysByRole[map[key]])
+          } else {
+            delete entity[key]
+          }
+        }
+      }
+      return entity;
+    }
+  }
+
+  /* READ */
+
+  async onSpace(id: string, listener: (data: SpaceEntity, id: string) => void) {
     this.gun.get(id).on(listener);
   }
 
@@ -120,77 +236,42 @@ export class StreamsService {
     this.gun.get(id).on(listener);
   }
 
-  onSpaceStream(space: string, listener: (data: StreamEntity, key: string) => void, lastMessageListener: (data: MessageEntity, key: string) => void) {
-    this.gun
-      .get(space)
-      .get('streams')
-      .map()
-      .on(listener)
-      .get('lastMessage')
-      .on(lastMessageListener)
+  onSpaceStream({
+    id,
+    streamEprivListener,
+    streamReaderEprivListener,
+    streamListener,
+    lastMessageListener
+  }: {
+    id: string,
+    streamEprivListener: (data: { data: string; key: string }[]) => void,
+    streamReaderEprivListener: (data: { data: string; key: string }[]) => void,
+    streamListener: (data: { data: StreamEntity; key: string }[]) => void,
+    lastMessageListener: (data: { data: MessageEntity; key: string }[]) => void
+  }) {
+    batch((streamEprivListener, streamReaderEprivListener, streamListener, lastMessageListener) => {
+      this.gun.get(`streams-eprivs${id}.`).map().on(streamEprivListener)
+      this.gun.get(`streams-reader-eprivs${id}.`).map().on(streamReaderEprivListener)
+      this.gun
+        .get(`streams${id}.`)
+        .map()
+        .on(streamListener)
+        .get('lastMessage')
+        .on(lastMessageListener)
+    }, streamEprivListener, streamReaderEprivListener, streamListener, lastMessageListener)
   }
 
-  onStreams(space: string, listener: (data: { data: StreamEntity; key: string }[]) => void, lastMessageListener: (data: { data: MessageEntity; key: string }[]) => void) {
-    batch((cb, cb2) => this.onSpaceStream(space, cb, cb2), listener, lastMessageListener);
+  onMessage(streamId: string, listener: (data: { data: MessageEntity, key: string }[]) => void) {
+    batch(cb =>
+      this.gun
+        .get(`messages${streamId}.`)
+        .map(messageMap)
+        .on(cb),
+      listener);
   }
 
-  onMessage(streamName: string, listener: (data: MessageEntity, key: string) => void) {
-    this.getStream(streamName)
-      .get('messages')
-      .map(messageMap)
-      .on(listener);
-  }
-
-  onMessages(streamName: string, listener: (data: { data: MessageEntity; key: string }[]) => void) {
-    batch(cb => this.onMessage(streamName, cb), listener);
-  }
-
-  onAnyMessage(space: string, listener: (data: Message, key) => void) {
-    this.gun
-      .get(space)
-      .map()
-      .get('messages')
-      .map(messageMap)
-      .on(listener);
-  }
-
-  setStreamName(key: string, name: string) {
-    this.gun
-      .get(key)
-      .put({
-        name,
-      });
-  }
-
-  copyMessages(messages: Message[], to: string) {
-    const m = this.getStream(to).get('messages');
-    for (const message of messages) {
-      m.set(message);
-    }
-  }
-
-  deleteMessages(messages: MessageEntity[], stream: string) {
-    const m = this.getStream(stream).get('messages');
-    for (const message of messages) {
-      // this.getStream(from).get('messages').unset(message); doesn't work :/
-      m.put({ [getKey(message)]: null });
-    }
-  }
-
-  private getStream(key: string) {
-    return this.gun.get(key);
-  }
-
-  moveBetween(message: MessageEntity, prev: MessageEntity, next: MessageEntity) {
-    moveBetween(this.gun, message, prev, next);
-  }
-
-  updateMessage(message: MessageEntity, key: string, value: Primitive) {
-    update(this.gun, message, key, value);
-  }
-
-  append(message: MessageEntity, parent: MessageEntity) {
-    this.gun.get(getKey(message)).put({ parent });
+  getUUID() {
+    return this.gun.opt()._.opt.uuid()
   }
 }
 

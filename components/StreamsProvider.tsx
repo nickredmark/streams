@@ -2,8 +2,6 @@ import { Component, useRef } from "react";
 import { StreamsService, getStreams } from "../services/Streams";
 import Head from "next/head";
 
-const LOGIN_REQUIRED = false;
-
 export class StreamsProvider extends Component<{}, { initialized: boolean, logged: boolean }> {
     private streams: StreamsService;
     constructor(props) {
@@ -39,16 +37,13 @@ export class StreamsProvider extends Component<{}, { initialized: boolean, logge
                     return <div>Initializing...</div>
                 }
 
-                if (LOGIN_REQUIRED && !this.state.logged) {
-                    return <Login onLogin={() => this.setState({ logged: true })} />
-                }
-
                 return this.props.children
             })()}
         </>
     }
 }
 
+/*
 const Login = ({ onLogin }) => {
     const username = useRef(null);
     const password = useRef(null);
@@ -72,3 +67,4 @@ const Login = ({ onLogin }) => {
         <button>Log in / Register</button>
     </form>
 }
+*/

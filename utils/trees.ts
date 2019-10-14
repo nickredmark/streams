@@ -1,4 +1,4 @@
-import { getKey, GunEntity } from './ordered-list';
+import { GunEntity, getId } from './secure';
 
 export type Node<T> = {
   index: number;
@@ -38,7 +38,7 @@ export const treeify = <T extends GunEntity & WithParent>(entities: T[], linear?
   }
 
   for (const entity of entities) {
-    const key = getKey(entity);
+    const key = getId(entity);
     ensureNode(key);
     nodesByKey[key].entity = entity;
     const parent = linear ? '' : getParentKey(entity);
