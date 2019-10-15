@@ -127,6 +127,9 @@ export const Layout = ({ title, children }) => (
           }
         }
 
+        .stream-item-li {
+          position: relative;
+        }
         .stream-item {
           display: block;
           width: 100%;
@@ -151,7 +154,19 @@ export const Layout = ({ title, children }) => (
           font-size: 90%;
           color: darkgray;
         }
-
+        .stream-item-remove {
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          display: none;
+          color: lightgray;
+          padding: 0.5rem;
+          font-size: 80%;
+          text-decoration: none;
+        }
+        .stream-item-li:hover .stream-item-remove {
+          display: block;
+        }
         
         h1 {
           position: relative;

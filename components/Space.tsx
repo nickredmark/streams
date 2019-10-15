@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect } from "react";
 import { ShortMessageContent } from "../components/MessageContent";
-import { getStreams, SpaceEntity, StreamEntity, MessageEntity } from "../services/Streams";
+import { getStreams, SpaceEntity, StreamEntity, MessageEntity, migrate } from "../services/Streams";
 import { formatTime, streamComparator, getStreamTimestamp } from "../utils/time";
 import { Layout } from "./Layout";
-import { getId } from "../utils/secure";
+import { getId, decrypt } from "../utils/secure";
 import { Dictionary } from "lodash";
 
 export const Space = ({ id, epriv, readerEpriv }: {
@@ -38,7 +38,7 @@ export const Space = ({ id, epriv, readerEpriv }: {
                 const decryptedBatch = [];
                 for (const { data, key } of batch) {
                     decryptedBatch.push({
-                        data: await getStreams().Gun.SEA.decrypt(data, epriv),
+                        data: await decrypt(getStreams().Gun, data, epriv),
                         key
                     })
                 }
@@ -55,7 +55,7 @@ export const Space = ({ id, epriv, readerEpriv }: {
                 const decryptedBatch = [];
                 for (const { data, key } of batch) {
                     decryptedBatch.push({
-                        data: await getStreams().Gun.SEA.decrypt(data, readerEpriv),
+                        data: await decrypt(getStreams().Gun, data, readerEpriv),
                         key
                     })
                 }
@@ -70,9 +70,13 @@ export const Space = ({ id, epriv, readerEpriv }: {
             streamListener: (batch) => setEncryptedStreams(streams => {
                 const newStreams = { ...streams };
                 for (const { data, key } of batch) {
-                    newStreams[key] = {
-                        ...streams[key],
-                        ...data,
+                    if (data) {
+                        newStreams[key] = {
+                            ...streams[key],
+                            ...data,
+                        }
+                    } else {
+                        delete newStreams[key]
                     }
                 }
                 return newStreams
@@ -95,12 +99,15 @@ export const Space = ({ id, epriv, readerEpriv }: {
         (async () => {
             const streams = {};
             for (const key of Object.keys(encryptedStreams)) {
-                if (streamReaderEprivs[key] || streamEprivs[key]) {
-                    streams[key] = await getStreams().decryptStream({
+                if (streamReaderEprivs[key]) {
+                    const stream = await getStreams().decryptStream({
                         epriv: streamEprivs[key],
                         readerEpriv: streamReaderEprivs[key],
                         stream: encryptedStreams[key]
                     });
+                    if (stream) {
+                        streams[key] = stream;
+                    }
                 }
             }
             setStreams(streams);
@@ -108,7 +115,7 @@ export const Space = ({ id, epriv, readerEpriv }: {
             const messages = {};
             for (const messageId of Object.keys(encryptedMessages)) {
                 const streamId = /(~.+)\.$/.exec(messageId)[1]
-                if (streamReaderEprivs[streamId] || streamEprivs[streamId]) {
+                if (streamReaderEprivs[streamId]) {
                     messages[messageId] = await getStreams().decryptMessage({
                         epriv: streamEprivs[streamId],
                         readerEpriv: streamReaderEprivs[streamId],
@@ -118,7 +125,7 @@ export const Space = ({ id, epriv, readerEpriv }: {
             }
             setMessages(messages);
         })()
-    }, [streamReaderEprivs, streamEprivs, encryptedStreams, encryptedMessages]);
+    }, [streamEprivs, streamReaderEprivs, encryptedStreams, encryptedMessages]);
 
     const isWritable = space
         && getId(space).startsWith('~')
@@ -154,12 +161,17 @@ export const Space = ({ id, epriv, readerEpriv }: {
                             {Object.keys(streams).sort(streamComparator(streams, messages)).map(id => {
                                 const stream = streams[id]
                                 const lastMessage = messages[stream.lastMessage && stream.lastMessage['#']];
-                                return <li key={id}>
-                                    <a href={streamEprivs[id] ? `/stream/${id}/member/${streamEprivs[id]}` : `/stream/${id}/reader/${streamReaderEprivs[id]}`} target="_blank" className="stream-item"
-                                    ><span className="stream-item-name">{stream.name}</span>
+                                return <li key={id} className="stream-item-li">
+                                    <a
+                                        href={streamEprivs[id] ? `/stream/${id}/member/${streamEprivs[id]}` : `/stream/${id}/reader/${streamReaderEprivs[id]}`}
+                                        target="_blank"
+                                        className="stream-item"
+                                    >
+                                        <span className="stream-item-name">{stream.name}</span>
                                         <span className="stream-item-date">{formatTime(getStreamTimestamp(stream, messages))}</span>
                                         <span className="stream-item-last-message">{lastMessage && lastMessage.text && <ShortMessageContent message={lastMessage} />}</span>
                                     </a>
+                                    {isWritable && <a href="#" className="stream-item-remove" onClick={() => getStreams().deleteStream({ space, streamId: id })}>X</a>}
                                 </li>
                             })}
                         </ul>
@@ -186,6 +198,9 @@ const NewStream = ({ space }: { space: SpaceEntity }) => {
                     } else {
                         await getStreams().addStream({ space, streamId: match[1], streamEpriv: match[3] })
                     }
+                } else if (match = /(\w{15,})(\?|$)/.exec(streamName)) {
+                    const cred = await migrate(match[1]);
+                    await getStreams().addStream({ space, streamId: cred.id, streamEpriv: cred.epriv, streamReaderEpriv: cred.readerEpriv })
                 } else {
                     await getStreams().createStream({ space, streamName })
                 }

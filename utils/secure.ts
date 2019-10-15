@@ -123,6 +123,18 @@ export const put = async (props: {
     gun.get(id).get(key).put(value);
 }
 
+export const decrypt = async (Gun: GUN, value: string, key: string) => {
+    if (!key) {
+        throw new Error(`Can't decrypt without key.`)
+    }
+    const result = await Gun.SEA.decrypt(value, key);
+    if (result === undefined) {
+        console.trace();
+        throw new Error(`Can't decrypt ${value} with key ${key}`)
+    }
+    return result;
+}
+
 export const getId = (o: GunEntity) => o && (o._['#'] || o._.get);
 
 export const getPub = (o: GunEntity) => getId(o).slice(1)

@@ -1,6 +1,6 @@
 import { moveBetween, Ordered } from '../utils/ordered-list';
 import moment from 'moment';
-import { GunEntity, Gun, GUN, put, Credentials, create, getPub, Link, Primitive, GunRootEntity, getId } from '../utils/secure';
+import { GunEntity, Gun, GUN, put, Credentials, create, getPub, Link, Primitive, GunRootEntity, getId, decrypt } from '../utils/secure';
 
 let streams: StreamsService;
 
@@ -119,7 +119,7 @@ export class StreamsService {
       await put({ ...base, epriv: space.epriv, sub: 'streams-eprivs', value: streamEpriv });
       if (!streamReaderEpriv) {
         streamReaderEpriv = await this.gun.get(streamId).get('reader-epriv').then() as string;
-        streamReaderEpriv = await this.Gun.SEA.decrypt(streamReaderEpriv, streamEpriv)
+        streamReaderEpriv = await decrypt(this.Gun, streamReaderEpriv, streamEpriv)
       }
     }
     if (streamReaderEpriv) {
@@ -160,7 +160,20 @@ export class StreamsService {
       pub: getPub(stream),
       sub: 'messages',
       key: messageId,
-      value: null
+      link: null
+    })
+  }
+
+  async deleteStream({ space, streamId }: { space: SpaceEntity, streamId: string }) {
+    await put({
+      Gun: this.Gun,
+      gun: this.gun,
+      priv: space.priv,
+      epriv: space["reader-epriv"],
+      pub: getPub(space),
+      sub: 'streams',
+      key: streamId,
+      link: null
     })
   }
 
@@ -204,33 +217,31 @@ export class StreamsService {
     })
   }
 
-  async decrypt<T extends GunEntity>({ epriv, readerEpriv, entity, map }: { epriv?: string, readerEpriv?: string, entity: T | string, map: { [x in keyof T]: Group } }): Promise<T> {
-    if (!readerEpriv && epriv && entity["reader-epriv"]) {
-      readerEpriv = await this.Gun.SEA.decrypt(entity["reader-epriv"], epriv);
+  async decrypt<T extends GunEntity>({ epriv, readerEpriv, entity, map }: { epriv?: string, readerEpriv?: string, entity: T, map: { [x in keyof T]: Group } }): Promise<T> {
+    if (entity === null) {
+      return entity;
+    }
+    if (!readerEpriv && epriv) {
+      if (!entity["reader-epriv"]) {
+        throw new Error('Too early to decript this entity.')
+      }
+      readerEpriv = await decrypt(this.Gun, entity["reader-epriv"], epriv);
     }
     const keysByRole = {
       member: epriv,
       reader: readerEpriv,
     }
-    if (typeof entity === 'string') {
-      if (entity.startsWith('SEA{')) {
-        return await this.Gun.SEA.decrypt(entity, readerEpriv) as any
-      } else {
-        return entity as any;
-      }
-    } else {
-      entity = { ...entity };
-      for (const key of Object.keys(entity)) {
-        if (typeof entity[key] === 'string' && entity[key].startsWith('SEA{')) {
-          if (keysByRole[map[key]]) {
-            entity[key] = await this.Gun.SEA.decrypt(entity[key], keysByRole[map[key]])
-          } else {
-            delete entity[key]
-          }
+    entity = { ...entity };
+    for (const key of Object.keys(entity)) {
+      if (typeof entity[key] === 'string' && entity[key].startsWith('SEA{')) {
+        if (keysByRole[map[key]]) {
+          entity[key] = await decrypt(this.Gun, entity[key], keysByRole[map[key]])
+        } else {
+          delete entity[key]
         }
       }
-      return entity;
     }
+    return entity;
   }
 
   /* READ */
@@ -321,3 +332,57 @@ export const getMessageStreamId = (message: MessageEntity) => {
   const id = getId(message);
   return /(~.+)\.$/.exec(id)[1]
 }
+
+export const migrate = async (streamId) => new Promise<Credentials>(res => {
+  let created;
+  getStreams().gun.get(streamId).get('name').once((async streamName => {
+    const cred = await getStreams().createStream({ streamName })
+    res(cred);
+    const base = {
+      Gun: getStreams().Gun,
+      gun: getStreams().gun,
+      pub: cred.pub,
+      priv: cred.priv,
+      epriv: cred.readerEpriv,
+    }
+    getStreams().gun.get(streamId).get('lastMessage').once(async lastMessage => {
+      if (lastMessage) {
+        await put({ ...base, key: 'lastMessage', link: `${lastMessage._['#']}~${cred.pub}.` })
+      }
+    })
+    getStreams().gun.get(streamId).get('messages').map(async (message: MessageEntity) => {
+      if (message) {
+        const uuid = getId(message);
+        const messageId = `${uuid}~${cred.pub}.`
+        await put({ ...base, sub: 'messages', key: messageId, link: messageId })
+        for (const key of Object.keys(message)) {
+          switch (key) {
+            case 'text':
+              await put({ ...base, sub: uuid, key: 'created', value: message._['>'].text })
+              if (!created || message._['>'].text < created) {
+                created = message._['>'].text;
+                await put({ ...base, key: 'created', value: created })
+              }
+              await put({ ...base, sub: uuid, key, value: message[key] })
+              break;
+            case 'highlighted':
+              await put({ ...base, sub: uuid, key, value: message[key] })
+              break;
+            case 'index':
+              console.log('index', message[key])
+              if (message[key]) {
+                const index = JSON.parse(message[key]);
+                await put({ ...base, sub: uuid, key, value: JSON.stringify(index.map(id => id ? `${id}~${cred.pub}.` : id)) })
+              }
+              break;
+            case 'parent':
+              if (message[key]) {
+                await put({ ...base, sub: uuid, key, link: `${message[key]['#']}~${cred.pub}.` })
+              }
+              break;
+          }
+        }
+      }
+    })
+  }))
+})
