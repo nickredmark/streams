@@ -30,6 +30,7 @@ let allMessages: Dictionary<MessageEntity> = {};
 
 export const StreamComponent = ({ id, all, highlights, epriv, readerEpriv, goTo }: { id: string; epriv?: string, readerEpriv?: string; all: boolean; highlights: boolean; goTo: (query: any) => void }) => {
     const [stream, setStream] = useState<StreamEntity>(null);
+    const [lastMessage, setLastMessage] = useState<MessageEntity>(null);
     const [{ messages, oldMessagesAvailable }, setMessages] = useState<{ oldMessagesAvailable: boolean, messages: Dictionary<MessageEntity> }>({ oldMessagesAvailable: false, messages: {} });
     const isWritable = !!(id.startsWith('~')
         && epriv
@@ -87,6 +88,11 @@ export const StreamComponent = ({ id, all, highlights, epriv, readerEpriv, goTo 
         if (!readerEpriv) {
             return;
         }
+        getStreams().onLastMessage(id, async message => setLastMessage(await getStreams().decryptMessage({
+            epriv,
+            readerEpriv,
+            message
+        })))
         getStreams().onMessage(id, async batch => {
             const decryptedBatch: { data: MessageEntity, key: string }[] = [];
             for (const { data, key } of batch) {
@@ -102,10 +108,8 @@ export const StreamComponent = ({ id, all, highlights, epriv, readerEpriv, goTo 
                         v =>
                             v.data === null ||
                             v.data &&
-                            v.data._ &&
-                            v.data._['>'] &&
-                            v.data._['>'].text &&
-                            moment(v.data._['>'].text) > moment().subtract(2, 'days'),
+                            v.data.created &&
+                            moment(v.data.created) > moment().subtract(2, 'days'),
                     );
                 if (filteredBatch.length) {
                     newState.messages = addMessages(filteredBatch, { ...messages });
@@ -148,10 +152,9 @@ export const StreamComponent = ({ id, all, highlights, epriv, readerEpriv, goTo 
                                     }}
                                 >
                                     load full stream
-
                                 </ShyButton>
                             )}
-                            {tree.length === 0 && stream && stream._['>'].lastMessage && moment(stream._['>'].lastMessage) > moment().subtract(2, 'days') && <div>Loading...</div>}
+                            {tree.length === 0 && (!stream || stream.lastMessage && (!lastMessage || moment(lastMessage.created) > moment().subtract(2, 'days'))) && <div>Loading...</div>}
                             <Tree
                                 onFocus={focus => goTo({ focus })}
                                 stream={stream}

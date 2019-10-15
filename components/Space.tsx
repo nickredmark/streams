@@ -151,13 +151,13 @@ export const Space = ({ id, epriv, readerEpriv }: {
                                 listStyle: "none"
                             }}
                         >
-                            {Object.keys(streams).sort(streamComparator(streams)).map(id => {
+                            {Object.keys(streams).sort(streamComparator(streams, messages)).map(id => {
                                 const stream = streams[id]
                                 const lastMessage = messages[stream.lastMessage && stream.lastMessage['#']];
                                 return <li key={id}>
                                     <a href={streamEprivs[id] ? `/stream/${id}/member/${streamEprivs[id]}` : `/stream/${id}/reader/${streamReaderEprivs[id]}`} target="_blank" className="stream-item"
                                     ><span className="stream-item-name">{stream.name}</span>
-                                        <span className="stream-item-date">{formatTime(getStreamTimestamp(stream))}</span>
+                                        <span className="stream-item-date">{formatTime(getStreamTimestamp(stream, messages))}</span>
                                         <span className="stream-item-last-message">{lastMessage && lastMessage.text && <ShortMessageContent message={lastMessage} />}</span>
                                     </a>
                                 </li>
@@ -180,17 +180,18 @@ const NewStream = ({ space }: { space: SpaceEntity }) => {
                 const streamName = name.current.value
                 name.current.value = ''
                 let match;
-                if (match = /^~([_-\w]+)\/reader\/([_-\w]+)$/.exec(streamName)) {
-                    console.log(match);
-                    // await getStreams().addStream({ space, })
-                } else if (match = /^~([_-\w]+)\/member\/([_-\w]+)$/.exec(streamName)) {
-                    console.log(match);
+                if (match = /(~.+)\/(reader|member)\/([\w\-_]+)/.exec(streamName)) {
+                    if (match[2] === 'reader') {
+                        await getStreams().addStream({ space, streamId: match[1], streamReaderEpriv: match[3] })
+                    } else {
+                        await getStreams().addStream({ space, streamId: match[1], streamEpriv: match[3] })
+                    }
                 } else {
                     await getStreams().createStream({ space, streamName })
                 }
             }}
         >
-            <input ref={name} placeholder="new stream" style={{
+            <input ref={name} placeholder="new stream (or URL of existing stream)" style={{
                 width: "100%",
                 padding: "1rem",
                 borderRadius: "none",

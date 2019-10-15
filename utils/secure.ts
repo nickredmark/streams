@@ -3,10 +3,14 @@ export type GunEntity = {
         ['#']?: string;
         get?: string;
     };
+    created: number;
+};
+
+export type GunRootEntity = GunEntity & {
     priv: string;
     epriv: string;
     'reader-epriv': string;
-};
+}
 
 export type GUN = {
     SEA: SEA;
@@ -29,6 +33,7 @@ export type Gun = {
         }
     }
     on: (listener: (data: any, id: string) => void) => Gun
+    once: (listener: (data: any, id: string) => void) => Gun
     map: (listener?: (data: any, id: string) => void) => Gun
 };
 
@@ -114,6 +119,7 @@ export const put = async (props: {
         ':': value,
         '>': Gun.state(),
     }, { priv, pub });
+    // console.log('put', id, key, value)
     gun.get(id).get(key).put(value);
 }
 
@@ -125,6 +131,15 @@ export const create = async ({ Gun, gun }: { Gun: GUN, gun: Gun }): Promise<Cred
     const pair = await Gun.SEA.pair();
     const readerPair = await Gun.SEA.pair();
     const id = `~${pair.pub}`;
+    const cred = {
+        id,
+        priv: pair.priv,
+        pub: pair.pub,
+        epriv: pair.epriv,
+        epub: pair.epub,
+        readerEpriv: readerPair.epriv,
+        readerepub: readerPair.epub
+    }
 
     const base = {
         Gun,
@@ -134,48 +149,10 @@ export const create = async ({ Gun, gun }: { Gun: GUN, gun: Gun }): Promise<Cred
         epriv: pair.epriv,
         id
     }
-    await put({ ...base, key: 'priv', value: pair.priv });
-    await put({ ...base, key: 'epriv', value: pair.epriv });
-    await put({ ...base, key: 'reader-epriv', value: readerPair.epriv });
+    await put({ ...base, key: 'priv', value: cred.priv });
+    await put({ ...base, key: 'epriv', value: cred.epriv });
+    await put({ ...base, key: 'reader-epriv', value: cred.readerEpriv });
+    await put({ ...base, epriv: cred.readerEpriv, key: 'created', value: +new Date() });
 
-    return {
-        id,
-        priv: pair.priv,
-        pub: pair.pub,
-        epriv: pair.epriv,
-        epub: pair.epub,
-        readerEpriv: readerPair.epriv,
-        readerepub: readerPair.epub
-    }
+    return cred;
 }
-
-/*
-
-gun = Gun()
-Gun.SEA.pair().then(p => pair = p)
-Gun.SEA.sign(Gun.SEA.opt.prep('bar'), pair).then(signature => gun.get(`~${pair.pub}`).get('foo').put(signature))
-gun.get(`~${pair.pub}`).once(x => console.log(x))
-
-gun.get('foo').get('x').put('y')
-Gun.SEA.sign({
-    '#': `~${pair.pub}`,
-    '.': 'rel',
-    ':': {
-        "#": 'foo'
-    },
-    '>': +new Date()
-}, pair).then(signature => {
-    gun.get(`~${pair.pub}`).get('rel').put(signature);
-});
-
-Gun.SEA.sign({
-    '#': `anything~${pair.pub}.`,
-    '.': 'rel',
-    ':': {
-        "#": 'foo'
-    },
-    '>': +new Date()
-}, pair).then(signature => {
-    gun.get(`anything~${pair.pub}.`).get('rel').put(signature);
-});
-*/

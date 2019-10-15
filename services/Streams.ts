@@ -1,6 +1,6 @@
 import { moveBetween, Ordered } from '../utils/ordered-list';
 import moment from 'moment';
-import { GunEntity, Gun, GUN, put, Credentials, getId, create, getPub, Link, Primitive } from '../utils/secure';
+import { GunEntity, Gun, GUN, put, Credentials, create, getPub, Link, Primitive, GunRootEntity, getId } from '../utils/secure';
 
 let streams: StreamsService;
 
@@ -17,7 +17,7 @@ export type Space = {
   name: string;
 }
 
-export type SpaceEntity = Space & GunEntity;
+export type SpaceEntity = Space & GunRootEntity;
 
 export type Stream = {
   name: string;
@@ -25,7 +25,7 @@ export type Stream = {
 };
 
 
-export type StreamEntity = Stream & GunEntity;
+export type StreamEntity = Stream & GunRootEntity;
 
 export type Message = {
   text: string;
@@ -35,6 +35,14 @@ export type Message = {
 export type MessageEntity = Message & GunEntity & Ordered;
 
 type Group = 'member' | 'reader' | 'guest'
+
+const MAP = {
+  _: 'guest' as Group,
+  priv: 'member' as Group,
+  epriv: 'member' as Group,
+  'reader-epriv': 'member' as Group,
+  created: 'reader' as Group,
+}
 
 export class StreamsService {
   public Gun: GUN;
@@ -71,7 +79,7 @@ export class StreamsService {
     return cred;
   }
 
-  async createStream({ space, streamName }: { space: SpaceEntity, streamName: string }) {
+  async createStream({ space, streamName }: { space?: SpaceEntity, streamName: string }) {
     const cred = await create({ Gun: this.Gun, gun: this.gun });
     const base = {
       Gun: this.Gun,
@@ -81,7 +89,10 @@ export class StreamsService {
       epriv: cred.readerEpriv,
     }
     await put({ ...base, key: 'name', value: streamName });
-    await this.addStream({ space, streamId: `~${cred.pub}`, streamEpriv: cred.epriv, streamReaderEpriv: cred.readerEpriv })
+    if (space) {
+      await this.addStream({ space, streamId: `~${cred.pub}`, streamEpriv: cred.epriv, streamReaderEpriv: cred.readerEpriv })
+    }
+    return cred;
   }
 
   async addStream({
@@ -106,6 +117,10 @@ export class StreamsService {
     await put({ ...base, sub: 'streams', link: streamId });
     if (streamEpriv) {
       await put({ ...base, epriv: space.epriv, sub: 'streams-eprivs', value: streamEpriv });
+      if (!streamReaderEpriv) {
+        streamReaderEpriv = await this.gun.get(streamId).get('reader-epriv').then() as string;
+        streamReaderEpriv = await this.Gun.SEA.decrypt(streamReaderEpriv, streamEpriv)
+      }
     }
     if (streamReaderEpriv) {
       await put({ ...base, sub: 'streams-reader-eprivs', value: streamReaderEpriv });
@@ -117,6 +132,7 @@ export class StreamsService {
     const pub = getPub(stream);
     const base = { Gun: this.Gun, gun: this.gun, priv: stream.priv, epriv: stream["reader-epriv"], pub: pub }
     const messageId = `${uuid}~${pub}.`;
+    await put({ ...base, sub: uuid, key: 'created', value: +new Date() })
     for (const key of Object.keys(message)) {
       await put({ ...base, sub: uuid, key, value: message[key] });
     }
@@ -161,10 +177,7 @@ export class StreamsService {
   async decryptSpace({ epriv, readerEpriv, space }: { epriv?: string, readerEpriv?: string, space: SpaceEntity }) {
     return this.decrypt({
       epriv, readerEpriv, entity: space, map: {
-        _: 'guest',
-        priv: 'member',
-        epriv: 'member',
-        'reader-epriv': 'member',
+        ...MAP,
         name: 'reader',
       }
     })
@@ -173,10 +186,7 @@ export class StreamsService {
   async decryptStream({ epriv, readerEpriv, stream }: { epriv?: string, readerEpriv?: string, stream: StreamEntity }) {
     return this.decrypt({
       epriv, readerEpriv, entity: stream, map: {
-        _: 'guest',
-        priv: 'member',
-        epriv: 'member',
-        'reader-epriv': 'member',
+        ...MAP,
         name: 'reader',
         lastMessage: 'guest'
       }
@@ -186,10 +196,7 @@ export class StreamsService {
   async decryptMessage({ epriv, readerEpriv, message }: { epriv?: string, readerEpriv?: string, message: MessageEntity }) {
     return this.decrypt({
       epriv, readerEpriv, entity: message, map: {
-        _: 'guest',
-        priv: 'member',
-        epriv: 'member',
-        'reader-epriv': 'member',
+        ...MAP,
         highlighted: 'reader',
         index: 'reader',
         text: 'reader'
@@ -234,6 +241,10 @@ export class StreamsService {
 
   onStream(id: string, listener: (data: StreamEntity, id: string) => void) {
     this.gun.get(id).on(listener);
+  }
+
+  onLastMessage(id: string, listener: (message: MessageEntity, id: string) => void) {
+    this.gun.get(id).get('lastMessage').on(listener);
   }
 
   onSpaceStream({
@@ -305,3 +316,8 @@ const batch = (fn, ...listeners) => {
     }
   }));
 };
+
+export const getMessageStreamId = (message: MessageEntity) => {
+  const id = getId(message);
+  return /(~.+)\.$/.exec(id)[1]
+}
