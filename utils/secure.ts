@@ -86,8 +86,9 @@ export const put = async (props: {
     key: string,
     value?: Primitive
     link?: string
+    ack?: boolean
 }) => {
-    let { Gun, gun, priv, epriv, id, pub, sub, key, value, link } = props;
+    let { Gun, gun, priv, epriv, id, pub, sub, key, value, link, ack } = props;
     if (!id) {
         if (!pub) {
             throw new Error('Either id or pub are required')
@@ -120,7 +121,11 @@ export const put = async (props: {
         '>': Gun.state(),
     }, { priv, pub });
     // console.log('put', id, key, value)
-    gun.get(id).get(key).put(value);
+    if (ack) {
+        await new Promise(res => gun.get(id).get(key).put(value, res))
+    } else {
+        gun.get(id).get(key).put(value);
+    }
 }
 
 export const decrypt = async (Gun: GUN, value: string, key: string) => {

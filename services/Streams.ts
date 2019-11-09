@@ -74,7 +74,7 @@ export class StreamsService {
       epriv: cred.readerEpriv,
       id: cred.id,
     }
-    await put({ ...base, key: 'name', value: name });
+    await put({ ...base, key: 'name', value: name, ack: true });
 
     return cred;
   }
