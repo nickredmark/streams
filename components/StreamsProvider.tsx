@@ -23,13 +23,13 @@ export class StreamsProvider extends Component<{}, { initialized: boolean, logge
     render() {
         return <>
             <Head>
-                <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/gun/lib/radix.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/gun/lib/radisk.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/gun/lib/store.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/gun/lib/rindexed.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/gun/lib/webrtc.js"></script>
+                <script src="/gun/gun.js"></script>
+                <script src="/gun/lib/radix.js"></script>
+                <script src="/gun/lib/radisk.js"></script>
+                <script src="/gun/lib/store.js"></script>
+                <script src="/gun/lib/rindexed.js"></script>
+                <script src="/gun/sea.js"></script>
+                <script src="/gun/lib/webrtc.js"></script>
                 <title>Initializing...</title>
             </Head>
             {(() => {
