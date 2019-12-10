@@ -163,7 +163,9 @@ export const Space = ({ id, epriv, readerEpriv }: {
                                 const lastMessage = messages[stream.lastMessage && stream.lastMessage['#']];
                                 return <li key={id} className="stream-item-li">
                                     <a
-                                        href={streamEprivs[id] ? `/stream/${id}/member/${streamEprivs[id]}` : `/stream/${id}/reader/${streamReaderEprivs[id]}`}
+                                        href={`https://gun-streams.nmaro.now.sh?id=${id}&legacy=true#${
+                                          stream.priv ? `priv=${stream.priv}` : ''
+                                        }&epriv=${streamReaderEprivs[id]}`}
                                         target="_blank"
                                         className="stream-item"
                                     >
